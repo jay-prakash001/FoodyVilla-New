@@ -97,4 +97,8 @@ dependencies {
     implementation("io.ktor:ktor-client-android:3.4.2")
 
 
+    // sign in with google
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+
 }

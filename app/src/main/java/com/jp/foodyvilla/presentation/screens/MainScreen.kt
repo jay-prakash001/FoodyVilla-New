@@ -20,6 +20,7 @@ import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.presentation.screens.home.HomeScreen
 import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
+import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
 
 
 @Composable
@@ -55,7 +56,7 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController) {
                 1 -> MenuScreen(onItemClick = { navController.navigate(Screen.Detail(it)) })
 //                1-> OrderOnlineScreen({ selectedPage = 0})
                 2 -> OffersScreen()
-//                2 -> NotificationScreen(notifications = notifications) { selectedPage = 0 }
+                3 -> ReviewsScreen()
 //                3 -> ContactUsScreen()
                 else -> HomeScreen({}, {})
 

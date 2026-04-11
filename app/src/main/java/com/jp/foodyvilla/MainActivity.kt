@@ -10,8 +10,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.jp.foodyvilla.presentation.navigation.FoodyVillaNavGraph
+import com.jp.foodyvilla.presentation.screens.login.GoogleSignInScreen
 import com.jp.foodyvilla.presentation.utils.HideSystemBars
 import com.jp.foodyvilla.ui.theme.AppTheme
 
@@ -22,7 +24,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme(dynamicColor = false) {
                 HideSystemBars()
-                FoodyVillaNavGraph()
+//                FoodyVillaNavGraph()
+            val context = LocalContext.current
+                GoogleSignInScreen(context)
+
             }
         }
     }
