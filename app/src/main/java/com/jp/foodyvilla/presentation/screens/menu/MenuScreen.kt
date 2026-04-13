@@ -4,13 +4,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.presentation.screens.home.CategoryChip
 import com.jp.foodyvilla.presentation.screens.home.HorizontalFoodCard
 import org.koin.androidx.compose.koinViewModel
@@ -19,6 +25,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun MenuScreen(
     onItemClick: (Int) -> Unit,
+    navController: NavController,
     viewModel: MenuViewModel = koinViewModel(),
 //    cartViewModel: CartViewModel = koinViewModel()
 ) {
@@ -55,9 +62,62 @@ fun MenuScreen(
                         CategoryChip(
                             label = cat.name,
                             emoji = cat.emoji,
-                            selected = state.selectedCategory == cat.id,
-                            onClick = { viewModel.selectCategory(cat.id) }
+                            selected = state.selectedCategory == cat.name,
+                            onClick = { viewModel.selectCategory(cat.name) }
                         )
+                    }
+                }
+            }
+
+            item {
+                Card(onClick = { navController.navigate(Screen.OnLineMenu) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Explore Online Menu",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            )
+                            Text(
+                                text = "Order from our digital catalog",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            )
+                        }
+
+                        // 🌐 Icon indicating a web/online action
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.Language,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

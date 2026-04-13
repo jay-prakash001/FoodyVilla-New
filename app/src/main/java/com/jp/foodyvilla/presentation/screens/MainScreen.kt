@@ -14,18 +14,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.jp.foodyvilla.presentation.components.FoodyVillaNavBar
 import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.presentation.screens.home.HomeScreen
+import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
+import org.koin.androidx.compose.koinViewModel
 
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, navController: NavController) {
-    var selectedPage by remember { mutableStateOf(0) }
+fun MainScreen(modifier: Modifier = Modifier, navController: NavController, viewModel: HomeViewModel = koinViewModel()) {
+    val selectedPage = viewModel.selectedPage.collectAsStateWithLifecycle().value
 
 
     Scaffold(
@@ -33,7 +36,7 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController) {
         bottomBar = {
             FoodyVillaNavBar(
                 selectedPage = selectedPage,
-                onPageChange = { selectedPage = it },
+                onPageChange = { viewModel.updateSelectedPage(it) },
                 modifier = modifier
                     .fillMaxWidth()
                     .height(84.dp)
@@ -42,7 +45,7 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController) {
     ) { innerPadding ->
         Box(modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)) {
+            .padding(bottom = innerPadding.calculateBottomPadding()) ) {
 
             // MenuWebViewScreen stays alive in the background — never recomposed away
 
@@ -51,14 +54,16 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController) {
             when (selectedPage) {
                 0 -> HomeScreen({ itemId ->
                     navController.navigate(Screen.Detail(itemId))
-                }, {})
+                }, {}, viewModel)
 
-                1 -> MenuScreen(onItemClick = { navController.navigate(Screen.Detail(it)) })
+                1 -> MenuScreen(navController = navController,onItemClick = { navController.navigate(Screen.Detail(it)) })
 //                1-> OrderOnlineScreen({ selectedPage = 0})
                 2 -> OffersScreen()
-                3 -> ReviewsScreen()
+                3 -> ReviewsScreen(){
+                    navController.navigate(Screen.AddReviews)
+                }
 //                3 -> ContactUsScreen()
-                else -> HomeScreen({}, {})
+                else -> HomeScreen({}, {},viewModel)
 
             }
         }

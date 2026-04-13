@@ -1,20 +1,26 @@
 package com.jp.foodyvilla.presentation.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.jp.foodyvilla.presentation.screens.MainScreen
 import com.jp.foodyvilla.presentation.screens.detail.DetailScreen
-import com.jp.foodyvilla.presentation.screens.home.HomeScreen
-
+import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
+import com.jp.foodyvilla.presentation.screens.menuOnline.OrderOnlineScreen
+import com.jp.foodyvilla.presentation.screens.reviews.AddReviewScreen
 import com.jp.foodyvilla.presentation.screens.splash.SplashScreen
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun FoodyVillaNavGraph() {
     val navController = rememberNavController()
-    NavHost(
+    val homeViewModel = koinViewModel<HomeViewModel>()
+
+    NavHost(modifier = Modifier.fillMaxSize(),
         navController = navController,
         startDestination = Screen.Splash
     ) {
@@ -29,7 +35,7 @@ fun FoodyVillaNavGraph() {
         }
 
         composable<Screen.Home> {
-            MainScreen(navController  = navController)
+            MainScreen(navController = navController, viewModel = homeViewModel)
 //            HomeScreen(
 //                onItemClick = { itemId -> navController.navigate(Screen.Detail(itemId)) },
 //                onCartClick = { navController.navigate(Screen.Cart) }
@@ -42,8 +48,13 @@ fun FoodyVillaNavGraph() {
             DetailScreen(
                 itemId = detail.itemId,
                 onBack = { navController.popBackStack() },
-                onCartClick = { navController.navigate(Screen.Cart) }
+                onItemClick = {navController.navigate(Screen.Detail(it))},
+                onCartClick = { navController.navigate(Screen.Cart) }, homeViewModel = homeViewModel
             )
+        }
+
+        composable<Screen.OnLineMenu> { backStack ->
+            OrderOnlineScreen(onBackClick = {navController.navigateUp()})
         }
 //
 //        composable<Screen.Cart> {
@@ -62,10 +73,19 @@ fun FoodyVillaNavGraph() {
 //        composable<Screen.Offers> {
 //            OffersScreen()
 //        }
-//
+////
 //        composable<Screen.Reviews> {
-//            ReviewsScreen()
+//            ReviewsScreen(){
+//                navController.navigate(Screen.AddReviews)
+//            }
 //        }
+        composable<Screen.AddReviews> {
+            AddReviewScreen(
+                viewModel = koinViewModel(),
+                onBack = { navController.popBackStack() }
+            )
+        }
+
 //
 //        composable<Screen.Contact> {
 //            ContactScreen(onBack = { navController.popBackStack() })

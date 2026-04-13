@@ -23,21 +23,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme(dynamicColor = false) {
-                HideSystemBars()
-//                FoodyVillaNavGraph()
-            val context = LocalContext.current
-                GoogleSignInScreen(context)
+//                HideSystemBars()
+                FoodyVillaNavGraph()
+//            val context = LocalContext.current
+//                GoogleSignInScreen(context)
 
             }
         }
     }
 }
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-

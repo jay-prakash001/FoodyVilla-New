@@ -71,13 +71,14 @@ data class UserProfile(
 
 @Serializable
 data class Review(
-    val id: String = "",
+    val id: Int = 0,
     val userName: String = "",
-    val userAvatar: String = "",
+    val title: String = "",
     val rating: Double = 0.0,
-    val comment: String = "",
+    val desc: String = "",
     val date: String = "",
-    val foodItem: String = ""
+    val foodItem: String = "",
+    val img_url: List<String> = emptyList() // ✅ NEW
 )
 
 @Serializable

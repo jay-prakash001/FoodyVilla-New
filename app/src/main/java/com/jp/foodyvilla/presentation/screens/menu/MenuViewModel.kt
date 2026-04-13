@@ -38,5 +38,5 @@ class MenuViewModel(private val foodRepository: ProductRepo) : ViewModel() {
         }
     }
 
-    fun selectCategory(id: String) = _uiState.update { it.copy(selectedCategory = id) }
+    fun selectCategory(name: String) = _uiState.update { it.copy(selectedCategory = if(name.contains("all",true)){""}else name) }
 }

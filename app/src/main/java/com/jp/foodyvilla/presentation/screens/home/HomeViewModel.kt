@@ -28,10 +28,30 @@ data class HomeUiState(
 
     val filteredItems: List<FoodItem>
         get() {
-            val byCategory = if (selectedCategory == "all") allItems
-            else allItems.filter { it.category == selectedCategory }
-            return if (searchQuery.isBlank()) byCategory
-            else byCategory.filter { it.name.contains(searchQuery, ignoreCase = true) }
+            val query = searchQuery.trim()
+
+            return allItems.filter { item ->
+
+                val matchesSearch =
+                    query.isBlank() ||
+                            item.name.contains(query, true) ||
+                            item.description.contains(query, true) ||
+                            item.category.contains(query, true) ||
+                            item.prepTime.contains(query, true) ||
+                            item.price.toString().contains(query) ||
+                            item.rating.toString().contains(query) ||
+                            (query.equals("veg", true) && item.isVeg) ||
+                            (query.equals("vegan", true) && item.isVegan)
+
+                val matchesCategory =
+                    selectedCategory == "all" ||
+                            item.category.equals(selectedCategory, true) ||
+                            // 🔥 ALSO allow category match via search
+                            item.name.contains(selectedCategory, true) ||
+                            item.description.contains(selectedCategory, true)
+
+                matchesSearch && matchesCategory
+            }
         }
 
     val popularItems: List<FoodItem>
@@ -40,6 +60,13 @@ data class HomeUiState(
 
 class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: ProductRepo) :
     ViewModel() {
+
+    private val _selectedPage = MutableStateFlow(0)
+    val selectedPage = _selectedPage.asStateFlow()
+    fun updateSelectedPage(page: Int) {
+        _selectedPage.value = page
+    }
+
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()

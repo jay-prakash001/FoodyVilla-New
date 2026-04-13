@@ -50,6 +50,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.animation)
+    implementation(libs.androidx.compose.ui.text)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -94,8 +95,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:storage-kt:$supabaseVersion")
 
     // Required
-    implementation("io.ktor:ktor-client-android:3.4.2")
-
+    implementation("io.ktor:ktor-client-okhttp:3.4.2")
 
     // sign in with google
     implementation("com.google.android.gms:play-services-auth:20.7.0")

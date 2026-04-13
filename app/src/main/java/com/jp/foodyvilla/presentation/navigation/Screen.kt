@@ -27,11 +27,18 @@ sealed interface Screen {
     @Serializable
     data object Menu : Screen
 
+
+    @Serializable
+    data object OnLineMenu : Screen
     @Serializable
     data object Offers : Screen
 
     @Serializable
     data object Reviews : Screen
+
+
+    @Serializable
+    data object AddReviews : Screen
 
     @Serializable
     data object Contact : Screen

@@ -1,6 +1,7 @@
 package com.jp.foodyvilla.presentation.screens.home
 
 import Banner
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -34,17 +35,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.jp.foodyvilla.data.model.FoodItem
 import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(
     onItemClick: (Int) -> Unit,
     onCartClick: () -> Unit,
-    viewModel: HomeViewModel = koinViewModel(),
+    viewModel: HomeViewModel ,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
@@ -155,8 +158,8 @@ fun HomeScreen(
                             CategoryChip(
                                 label = cat.name,
                                 emoji = cat.emoji,
-                                selected = state.selectedCategory == cat.id,
-                                onClick = { viewModel.selectCategory(cat.id) }
+                                selected = state.selectedCategory == cat.name,
+                                onClick = { viewModel.selectCategory(cat.name) }
                             )
                         }
                     }
@@ -372,7 +375,15 @@ fun FoodCard(
         Column(modifier = Modifier.padding(12.dp)) {
             Box {
                 AsyncImage(
-                    model = item.image,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(item.image.firstOrNull())
+                        .crossfade(true)
+                        .listener(
+                            onError = { _, result ->
+                                Log.e("CoilError", result.throwable.toString())
+                            }
+                        )
+                        .build(),
                     contentDescription = item.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
