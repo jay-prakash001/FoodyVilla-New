@@ -24,9 +24,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme(dynamicColor = false) {
 //                HideSystemBars()
-                FoodyVillaNavGraph()
+//                FoodyVillaNavGraph()
 //            val context = LocalContext.current
-//                GoogleSignInScreen(context)
+                GoogleSignInScreen()
 
             }
         }
