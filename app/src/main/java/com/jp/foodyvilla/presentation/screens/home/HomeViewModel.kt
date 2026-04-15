@@ -3,6 +3,7 @@ package com.jp.foodyvilla.presentation.screens.home
 import Banner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.messaging.FirebaseMessaging
 import com.jp.foodyvilla.data.model.Category
 import com.jp.foodyvilla.data.model.FoodItem
 import com.jp.foodyvilla.data.model.MockData
@@ -70,9 +71,17 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
+    val fcm = FirebaseMessaging.getInstance()
     init {
         loadData()
+            fcm.subscribeToTopic("offers")
+        fcm.token
+            .addOnSuccessListener { token ->
+                println("FCM Token: $token")
+            }
+            .addOnFailureListener {
+                println("Failed to get FCM token")
+            }
 
     }
 

@@ -7,6 +7,7 @@ package com.jp.foodyvilla.presentation.screens.detail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -54,6 +55,192 @@ import org.koin.core.parameter.parametersOf
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
+    itemId: Int,
+    onBack: () -> Unit,
+    onCartClick: () -> Unit,
+    onItemClick: (Int) -> Unit,
+    viewModel: DetailViewModel = koinViewModel(parameters = { parametersOf(itemId) }),
+    homeViewModel: HomeViewModel,
+) {
+    val primaryRed = MaterialTheme.colorScheme.primary
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val homeState by homeViewModel.uiState.collectAsStateWithLifecycle()
+
+    val item = state.item
+
+    LaunchedEffect(itemId) {
+        viewModel.loadItem(itemId)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "FoodyVilla",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            color = primaryRed,
+                            fontWeight = FontWeight.Black
+                        )
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                    }
+                },
+                actions = {
+                    if (item != null) {
+                        IconButton(onClick = viewModel::toggleWishlist) {
+                            Icon(
+                                if (state.isWishlisted) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                null,
+                                tint = primaryRed
+                            )
+                        }
+                    }
+                    IconButton(onClick = onCartClick) {
+                        Icon(Icons.Default.ShoppingCart, null, tint = primaryRed)
+                    }
+                }
+            )
+        },
+
+        bottomBar = {
+            if (item != null) {
+                Surface(shadowElevation = 12.dp) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        QuantitySelector(
+                            quantity = state.quantity,
+                            onDecrement = viewModel::decrement,
+                            onIncrement = viewModel::increment
+                        )
+
+                        Button(
+                            onClick = onCartClick,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
+                        ) {
+                            Text(
+                                "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}",
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    ) { padding ->
+
+        if (state.isLoading || item == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = primaryRed)
+            }
+            return@Scaffold
+        }
+
+        // ✅ FIX: Use LazyColumn instead of Column + scroll
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 100.dp)
+        ) {
+
+            // 🔥 HERO IMAGE
+            item {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    FoodImageSlider(images = item.image)
+
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, MaterialTheme.colorScheme.surface),
+                                    startY = 500f
+                                )
+                            )
+                    )
+                }
+            }
+
+            // 🔥 MAIN CONTENT
+            item {
+                Column(
+                    Modifier
+                        .offset(y = (-24).dp)
+                        .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(20.dp)
+                ) {
+
+                    Text(item.name, style = MaterialTheme.typography.headlineMedium)
+
+                    Text(
+                        "₹${item.price}",
+                        style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed)
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text(item.description)
+
+                    Spacer(Modifier.height(20.dp))
+                }
+            }
+
+            // 🔥 SUGGESTED ITEMS GRID (FIXED)
+            val suggestedItems = homeState.allItems.filter {
+                it.category.equals(item.category, true) && it.id != item.id
+            }.take(6)
+
+            if (suggestedItems.isNotEmpty()) {
+
+                item {
+                    Text(
+                        "More from ${item.category}",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+
+                // ✅ KEY FIX: No nested scroll issue now
+                item {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier
+                            .height(400.dp) // IMPORTANT: give bounded height
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(suggestedItems) {
+                            SuggestedDishCard(
+                                item = it,
+                                onClick = { onItemClick(it.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DetailScreen0(
     itemId: Int,
     onBack: () -> Unit,
     onCartClick: () -> Unit,

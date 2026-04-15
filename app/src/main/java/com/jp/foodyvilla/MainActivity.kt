@@ -23,10 +23,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AppTheme(dynamicColor = false) {
-//                HideSystemBars()
-//                FoodyVillaNavGraph()
+                HideSystemBars()
+                FoodyVillaNavGraph()
 //            val context = LocalContext.current
-                GoogleSignInScreen()
+//                GoogleSignInScreen()
 
             }
         }

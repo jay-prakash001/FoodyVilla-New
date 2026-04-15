@@ -17,8 +17,15 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.Red
+import androidx.compose.ui.graphics.Color.Companion.White
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -39,14 +46,158 @@ fun SplashScreen(onSplashComplete: () -> Unit) {
     }
 
 
-    FoodyVillaSplash()
+    SplashScreen0 {  }
+//    FoodyVillaSplash()
 }
 
 
+@Composable
+fun SplashScreen0(onFinished: () -> Unit) {
+
+    /* auto-navigate after 2.8 s */
+    LaunchedEffect(Unit) {
+        delay(2_800)
+        onFinished()
+    }
+
+    /* entry scale + fade */
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    val logoScale by animateFloatAsState(
+        targetValue   = if (visible) 1f else 0.4f,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow),
+        label         = "logoScale"
+    )
+    val logoAlpha by animateFloatAsState(
+        targetValue   = if (visible) 1f else 0f,
+        animationSpec = tween(600),
+        label         = "logoAlpha"
+    )
+
+    /* plate gentle rocking */
+    val infiniteT = rememberInfiniteTransition(label = "splash")
+    val plateRock by infiniteT.animateFloat(
+        initialValue = -8f, targetValue = 8f,
+        animationSpec = infiniteRepeatable(tween(1_600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "plateRock"
+    )
+
+    /* loading bar */
+    var barTarget by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) { delay(400); barTarget = 1f }
+    val barProg by animateFloatAsState(
+        targetValue   = barTarget,
+        animationSpec = tween(2_000, easing = FastOutSlowInEasing),
+        label         = "barProg"
+    )
+
+    Box(
+        Modifier.fillMaxSize().background(Red),
+        contentAlignment = Alignment.Center
+    ) {
+        /* decorative pulsing circles */
+        PulsingCircle(340.dp, (-90).dp, (-200).dp, delay = 0)
+        PulsingCircle(240.dp,  120.dp,   200.dp,   delay = 600)
+        PulsingCircle(150.dp, (-60).dp,  180.dp,   delay = 1_200)
+
+        /* logo block */
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.scale(logoScale).graphicsLayer(alpha = logoAlpha)
+        ) {
+            /* plate circle */
+            Box(
+                Modifier.size(110.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🍽️", fontSize = 54.sp,
+                    modifier = Modifier.graphicsLayer(rotationZ = plateRock))
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            /* brand name – Bebas Neue via displayLarge */
+            Text(
+                "FoodyVilla",
+                style     = MaterialTheme.typography.displayLarge.copy(color = White),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(6.dp))
+
+            Text(
+                "TASTE THE DIFFERENCE",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    color = White.copy(alpha = 0.75f),
+                    letterSpacing = 3.sp
+                )
+            )
+
+            Spacer(Modifier.height(60.dp))
+
+            /* loading bar */
+            Box(
+                Modifier.width(160.dp).height(3.dp).clip(CircleShape).background(White.copy(alpha = 0.2f))
+            ) {
+                Box(
+                    Modifier.fillMaxHeight().fillMaxWidth(barProg).clip(CircleShape).background(
+                        White
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PulsingCircle(size: Dp, offsetX: Dp, offsetY: Dp, delay: Int) {
+    val inf = rememberInfiniteTransition(label = "circle$delay")
+    val sc by inf.animateFloat(
+        1f, 1.1f,
+        infiniteRepeatable(tween(2_000, delayMillis = delay, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "sc$delay"
+    )
+    val al by inf.animateFloat(
+        1f, 0.5f,
+        infiniteRepeatable(tween(2_000, delayMillis = delay, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "al$delay"
+    )
+    Box(
+        Modifier
+            .size(size)
+            .offset(offsetX, offsetY)
+            .scale(sc)
+            .graphicsLayer(alpha = al)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.06f))
+    )
+}
+object FoodyTheme {
+    val bg          = Color(0xFF0F0500)
+    val bgMid       = Color(0xFF1E0C02)
+    val bgSurface   = Color(0xFF2A1205)
+
+    val orange      = Color(0xFFFF6B35)
+    val orangeLight = Color(0xFFFF9362)
+    val amber       = Color(0xFFFFA726)
+    val amberLight  = Color(0xFFFFCC70)
+
+    val glassWhite  = Color(0x14FFFFFF)
+    val glassBorder = Color(0x22FFFFFF)
+    val glassOrange = Color(0x1FFF6B35)
+
+    val textPrimary   = Color(0xFFFFF5EE)
+    val textSecondary = Color(0xB3FFD4B8)
+    val textMuted     = Color(0x66FFD4B8)
+
+    val orangeGrad = listOf(orange, amber)
+    val bgGrad0     = listOf(bg, bgMid, Color(0xFF150800))
+    val bgGrad     = listOf(bg, bgMid, Color(0xFF150800))
+}
 
 @Composable
 fun FoodyVillaSplash() {
-    val color = MaterialTheme.colorScheme
     val inf = rememberInfiniteTransition(label = "splash")
 
     val ring1Scale by inf.animateFloat(0.5f, 1.9f, infiniteRepeatable(tween(1700, easing = EaseOut), RepeatMode.Restart), label = "r1s")
@@ -68,15 +219,15 @@ fun FoodyVillaSplash() {
                 Canvas(Modifier.fillMaxSize()) {
                     val c     = Offset(size.width / 2, size.height / 2)
                     val baseR = size.minDimension * 0.27f
-                    drawCircle(color.primaryContainer.copy(ring1Alpha), baseR * ring1Scale, c)
-                    drawCircle(color.onPrimaryContainer.copy(ring2Alpha),  baseR * ring2Scale, c)
+                    drawCircle(FoodyTheme.orange.copy(ring1Alpha), baseR * ring1Scale, c)
+                    drawCircle(FoodyTheme.amber.copy(ring2Alpha),  baseR * ring2Scale, c)
 
                     val orbitR = baseR * 0.96f
                     val angle  = Math.toRadians(dotRot.toDouble())
                     val dp     = Offset(c.x + orbitR * cos(angle).toFloat(), c.y + orbitR * sin(angle).toFloat())
-                    drawCircle(color.primaryContainer, 7.dp.toPx(), dp)
+                    drawCircle(FoodyTheme.orange, 7.dp.toPx(), dp)
                     drawCircle(Color.White.copy(0.5f), 3.dp.toPx(), dp)
-                    drawCircle(color.onPrimaryContainer, orbitR, c, style = androidx.compose.ui.graphics.drawscope.Stroke(1f))
+                    drawCircle(FoodyTheme.glassBorder, orbitR, c, style = androidx.compose.ui.graphics.drawscope.Stroke(1f))
                 }
 
                 Box(
@@ -84,7 +235,7 @@ fun FoodyVillaSplash() {
                         .size(105.dp)
                         .clip(CircleShape)
                         .background(
-                            Brush.radialGradient(listOf(color.primaryContainer.copy(0.38f), color.surfaceContainer.copy(0.7f)))
+                            Brush.radialGradient(listOf(FoodyTheme.orange.copy(0.38f), FoodyTheme.bgSurface.copy(0.7f)))
                         )
                         .border(
                             1.2.dp,
@@ -101,7 +252,7 @@ fun FoodyVillaSplash() {
                 "FoodyVilla",
                 fontSize      = 34.sp,
                 fontWeight    = FontWeight.ExtraBold,
-                color         = color.onPrimaryContainer,
+                color         = FoodyTheme.textPrimary,
                 letterSpacing = (-1).sp
             )
 
@@ -110,7 +261,7 @@ fun FoodyVillaSplash() {
             Text(
                 "Getting your menu ready",
                 fontSize      = 13.sp,
-                color         = color.onPrimary.copy(alpha = textAlpha),
+                color         = FoodyTheme.textMuted.copy(alpha = textAlpha),
                 letterSpacing = 0.3.sp
             )
 
@@ -123,16 +274,16 @@ fun FoodyVillaSplash() {
                         infiniteRepeatable(tween(550, delayMillis = delay, easing = EaseInOutSine), RepeatMode.Reverse),
                         label = "da"
                     )
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(color.onPrimaryContainer.copy(a)))
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(FoodyTheme.orange.copy(a)))
                 }
             }
         }
     }
 }
 
+
 @Composable
 fun AnimatedBackground(modifier: Modifier = Modifier) {
-    val color = MaterialTheme.colorScheme
     val inf = rememberInfiniteTransition(label = "bg")
     val shift by inf.animateFloat(
         0f, 1f,
@@ -141,13 +292,13 @@ fun AnimatedBackground(modifier: Modifier = Modifier) {
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawRect(brush = Brush.verticalGradient(listOf(color.primaryContainer, color.primary)))
+        drawRect(brush = Brush.verticalGradient(FoodyTheme.bgGrad))
 
         val b1x = size.width * (0.78f + sin(shift * 2 * PI.toFloat()) * 0.08f)
         val b1y = size.height * (0.15f + cos(shift * 2 * PI.toFloat()) * 0.06f)
         drawCircle(
             brush  = Brush.radialGradient(
-                listOf(color.primary.copy(0.28f), Color.Transparent),
+                listOf(FoodyTheme.orange.copy(0.28f), Color.Transparent),
                 center = Offset(b1x, b1y), radius = size.width * 0.55f
             ),
             radius = size.width * 0.55f,
@@ -158,7 +309,7 @@ fun AnimatedBackground(modifier: Modifier = Modifier) {
         val b2y = size.height * (0.78f + sin(shift * 2 * PI.toFloat() + 1f) * 0.08f)
         drawCircle(
             brush  = Brush.radialGradient(
-                listOf(color.primaryContainer.copy(0.18f), Color.Transparent),
+                listOf(FoodyTheme.amber.copy(0.18f), Color.Transparent),
                 center = Offset(b2x, b2y), radius = size.width * 0.45f
             ),
             radius = size.width * 0.45f,

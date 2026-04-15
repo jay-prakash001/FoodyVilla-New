@@ -19,6 +19,8 @@ koinComposeViewmodel = "3.2.0"
 koinComposeViewmodelNavigation = "3.2.0"
 animation = "1.10.6"
 uiText = "1.10.6"
+googleGmsGoogleServices = "4.4.4"
+firebaseMessaging = "25.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,7 +47,9 @@ koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", ver
 koin-compose-viewmodel-navigation = { module = "io.insert-koin:koin-compose-viewmodel-navigation", version.ref = "koinComposeViewmodelNavigation" }
 androidx-compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "animation" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
 
