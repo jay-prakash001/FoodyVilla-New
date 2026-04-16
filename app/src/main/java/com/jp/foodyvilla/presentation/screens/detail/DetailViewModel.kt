@@ -26,8 +26,8 @@ class DetailViewModel(
     private val _uiState = MutableStateFlow(DetailUiState())
     val uiState: StateFlow<DetailUiState> = _uiState.asStateFlow()
 
-    init {
-    }
+
+
 
     fun loadItem(itemId : Int) {
         viewModelScope.launch {
@@ -36,6 +36,8 @@ class DetailViewModel(
             }
         }
     }
+
+
 
     fun increment() = _uiState.update { it.copy(quantity = it.quantity + 1) }
     fun decrement() = _uiState.update { it.copy(quantity = maxOf(1, it.quantity - 1)) }

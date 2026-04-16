@@ -6,13 +6,24 @@ package com.jp.foodyvilla.presentation.screens.detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -28,7 +39,21 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.*
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +83,7 @@ fun DetailScreen(
     itemId: Int,
     onBack: () -> Unit,
     onCartClick: () -> Unit,
+
     onItemClick: (Int) -> Unit,
     viewModel: DetailViewModel = koinViewModel(parameters = { parametersOf(itemId) }),
     homeViewModel: HomeViewModel,
@@ -67,6 +93,7 @@ fun DetailScreen(
     val homeState by homeViewModel.uiState.collectAsStateWithLifecycle()
 
     val item = state.item
+
 
     LaunchedEffect(itemId) {
         viewModel.loadItem(itemId)
@@ -121,18 +148,34 @@ fun DetailScreen(
                             onIncrement = viewModel::increment
                         )
 
-                        Button(
-                            onClick = onCartClick,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(52.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
-                        ) {
-                            Text(
-                                "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}",
-                                color = Color.White
-                            )
+                        if (homeState.cartItems.any { it.foodItem.id == item.id }) {
+                            Button(
+                                onClick = { homeViewModel.updateCartItemQuantity(item, 0) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
+                            ) {
+                                Text(
+                                    "Remove From Cart",
+                                    color = Color.White
+                                )
+                            }
+                        } else {
+                            Button(
+                                onClick = { homeViewModel.addItemToCart(item, state.quantity) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
+                            ) {
+                                Text(
+                                    "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}",
+                                    color = Color.White
+                                )
+                            }
                         }
+
                     }
                 }
             }
@@ -289,7 +332,11 @@ fun DetailScreen0(
                         BadgedBox(
                             badge = { /* Add cart count logic here if available */ }
                         ) {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = primaryRed)
+                            Icon(
+                                Icons.Default.ShoppingCart,
+                                contentDescription = "Cart",
+                                tint = primaryRed
+                            )
                         }
                     }
                 },
@@ -314,7 +361,9 @@ fun DetailScreen0(
                         )
                         Button(
                             onClick = { onCartClick() },
-                            modifier = Modifier.weight(1f).height(52.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
                         ) {
@@ -343,11 +392,19 @@ fun DetailScreen0(
                 .padding(bottom = padding.calculateBottomPadding())
         ) {
             // --- Hero Image Section ---
-            Box(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(320.dp)
+            ) {
                 if (item.image.isNotEmpty()) {
                     FoodImageSlider(images = item.image)
                 } else {
-                    Box(modifier = Modifier.fillMaxSize().background(Color.LightGray))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.LightGray)
+                    )
                 }
 
                 // Bottom Gradient overlay to blend with content card
@@ -356,7 +413,10 @@ fun DetailScreen0(
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, MaterialTheme.colorScheme.surface),
+                                colors = listOf(
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.surface
+                                ),
                                 startY = 500f
                             )
                         )
@@ -389,7 +449,9 @@ fun DetailScreen0(
 
                 // Name and Price
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
@@ -411,8 +473,15 @@ fun DetailScreen0(
                 }
 
                 // Rating & Prep Time
-                Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InfoBadge(icon = Icons.Default.Star, text = "${item.rating} (${item.reviewsCount}+)", iconColor = Color(0xFFFFA000))
+                Row(
+                    modifier = Modifier.padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    InfoBadge(
+                        icon = Icons.Default.Star,
+                        text = "${item.rating} (${item.reviewsCount}+)",
+                        iconColor = Color(0xFFFFA000)
+                    )
                     InfoBadge(icon = Icons.Default.Schedule, text = item.prepTime)
                 }
 
@@ -438,7 +507,9 @@ fun DetailScreen0(
                         modifier = Modifier.padding(top = 24.dp)
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         NutritionChip("Protein", item.nutritionalInfo.protein, Modifier.weight(1f))
@@ -485,27 +556,49 @@ fun DetailScreen0(
 @Composable
 fun SuggestedDishCard(item: FoodItem, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.width(160.dp).clickable { onClick() },
+        modifier = Modifier
+            .width(160.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = 0.4f
+            )
+        )
     ) {
         Column {
             AsyncImage(
                 model = item.image.firstOrNull(),
                 contentDescription = item.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(100.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
                 error = painterResource(android.R.drawable.ic_menu_report_image)
             )
             Column(modifier = Modifier.padding(10.dp)) {
-                Text(item.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    item.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("₹${item.price}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "₹${item.price}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFA000), modifier = Modifier.size(12.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            null,
+                            tint = Color(0xFFFFA000),
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(" ${item.rating}", style = MaterialTheme.typography.labelSmall)
                     }
                 }
@@ -515,9 +608,20 @@ fun SuggestedDishCard(item: FoodItem, onClick: () -> Unit) {
 }
 
 @Composable
-fun InfoBadge(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, iconColor: Color = Color.Gray) {
-    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {
-        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+fun InfoBadge(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    iconColor: Color = Color.Gray
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(16.dp))
             Text(text, style = MaterialTheme.typography.labelLarge)
         }
@@ -531,12 +635,18 @@ fun SuggestedDishCard0(item: FoodItem, onClick: () -> Unit) {
             .width(160.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = 0.5f
+            )
+        )
     ) {
         Column {
-            Box(modifier = Modifier
-                .height(120.dp)
-                .fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .height(120.dp)
+                    .fillMaxWidth()
+            ) {
                 AsyncImage(
                     model = item.image.firstOrNull(),
                     contentDescription = item.name,
@@ -546,9 +656,11 @@ fun SuggestedDishCard0(item: FoodItem, onClick: () -> Unit) {
                     error = painterResource(id = android.R.drawable.ic_menu_report_image)
                 )
                 // Small Veg/Non-Veg indicator on image
-                Box(modifier = Modifier
-                    .padding(8.dp)
-                    .align(Alignment.TopEnd)) {
+                Box(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .align(Alignment.TopEnd)
+                ) {
                     VegDot(isVeg = item.isVeg)
                 }
             }
@@ -570,7 +682,12 @@ fun SuggestedDishCard0(item: FoodItem, onClick: () -> Unit) {
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFA000), modifier = Modifier.size(12.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            null,
+                            tint = Color(0xFFFFA000),
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(" ${item.rating}", style = MaterialTheme.typography.labelSmall)
                     }
                 }
@@ -578,6 +695,7 @@ fun SuggestedDishCard0(item: FoodItem, onClick: () -> Unit) {
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen0(
@@ -587,8 +705,7 @@ fun DetailScreen0(
     viewModel: DetailViewModel = koinViewModel(parameters = { parametersOf(itemId) }),
     homeViewModel: HomeViewModel,
 //    cartViewModel: CartViewModel = koinViewModel()
-)
-{
+) {
     val PrimaryRed = MaterialTheme.colorScheme.primary
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 //    val cartState by cartViewModel.uiState.collectAsStateWithLifecycle()
@@ -632,7 +749,11 @@ fun DetailScreen0(
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         IconButton(onClick = onCartClick) {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = PrimaryRed)
+                            Icon(
+                                Icons.Default.ShoppingCart,
+                                contentDescription = "Cart",
+                                tint = PrimaryRed
+                            )
                         }
                     }
                 },
@@ -775,24 +896,44 @@ fun DetailScreen0(
                     modifier = Modifier.padding(top = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFA000), modifier = Modifier.size(16.dp))
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFFFA000),
+                                modifier = Modifier.size(16.dp)
+                            )
                             Text("${item.rating}", style = MaterialTheme.typography.labelLarge)
-                            Text("(${item.reviewsCount}+ Reviews)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "(${item.reviewsCount}+ Reviews)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Default.Schedule,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             Text(item.prepTime, style = MaterialTheme.typography.labelLarge)
                         }
                     }
@@ -874,6 +1015,7 @@ fun FoodImageSlider(images: List<String>) {
         }
     }
 }
+
 @Composable
 private fun NutritionChip(label: String, value: String, modifier: Modifier = Modifier) {
     val PrimaryRed = MaterialTheme.colorScheme.primary
@@ -888,8 +1030,18 @@ private fun NutritionChip(label: String, value: String, modifier: Modifier = Mod
                 .padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, style = MaterialTheme.typography.titleMedium.copy(color = PrimaryRed, fontWeight = FontWeight.Bold))
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                value,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = PrimaryRed,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -912,11 +1064,21 @@ fun QuantitySelector(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         IconButton(onClick = onDecrement, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = PrimaryRed, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.Default.Remove,
+                contentDescription = "Decrease",
+                tint = PrimaryRed,
+                modifier = Modifier.size(16.dp)
+            )
         }
         Text(quantity.toString(), style = MaterialTheme.typography.titleMedium)
         IconButton(onClick = onIncrement, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Add, contentDescription = "Increase", tint = PrimaryRed, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Increase",
+                tint = PrimaryRed,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

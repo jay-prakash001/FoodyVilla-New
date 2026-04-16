@@ -16,11 +16,11 @@ data class MenuUiState(
     val isLoading: Boolean = true,
     val allItems: List<FoodItem> = emptyList(),
     val categories: List<Category> = emptyList(),
-    val selectedCategory: String = "all"
+    val selectedCategory: String = ""
 ) {
     val filteredItems: List<FoodItem>
-        get() = if (selectedCategory == "all") allItems
-        else allItems.filter { it.category == selectedCategory }
+        get() = if (selectedCategory == "") allItems
+        else allItems.filter { it.category.contains( selectedCategory,true) }
 }
 
 class MenuViewModel(private val foodRepository: ProductRepo) : ViewModel() {

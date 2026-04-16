@@ -62,8 +62,8 @@ fun MenuScreen(
                         CategoryChip(
                             label = cat.name,
                             emoji = cat.emoji,
-                            selected = state.selectedCategory == cat.name,
-                            onClick = { viewModel.selectCategory(cat.name) }
+                            selected = state.selectedCategory == cat.id,
+                            onClick = { viewModel.selectCategory(cat.id) }
                         )
                     }
                 }

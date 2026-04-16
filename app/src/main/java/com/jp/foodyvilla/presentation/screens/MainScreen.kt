@@ -18,11 +18,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.jp.foodyvilla.presentation.components.FoodyVillaNavBar
 import com.jp.foodyvilla.presentation.navigation.Screen
+import com.jp.foodyvilla.presentation.screens.contactUs.ContactUsScreen
 import com.jp.foodyvilla.presentation.screens.home.HomeScreen
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
+import com.jp.foodyvilla.presentation.utils.RequestNotificationPermission
 import org.koin.androidx.compose.koinViewModel
 
 
@@ -62,7 +64,7 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController, view
                 3 -> ReviewsScreen(){
                     navController.navigate(Screen.AddReviews)
                 }
-//                3 -> ContactUsScreen()
+                4 -> ContactUsScreen()
                 else -> HomeScreen({}, {},viewModel)
 
             }

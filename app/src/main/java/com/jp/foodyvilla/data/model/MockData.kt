@@ -3,7 +3,7 @@ package com.jp.foodyvilla.data.model
 object MockData {
 
     val categories = listOf(
-        Category("all", "All", "🍽️"),
+        Category("", "All", "🍽️"),
         Category("pizza", "Pizza", "🍕"),
         Category("burger", "Burger", "🍔"),
         Category("noodles", "Noodles", "🍜"),
