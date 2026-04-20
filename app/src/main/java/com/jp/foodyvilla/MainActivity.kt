@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.jp.foodyvilla.presentation.navigation.FoodyVillaNavGraph
 import com.jp.foodyvilla.presentation.screens.login.GoogleSignInScreen
+import com.jp.foodyvilla.presentation.screens.login.MobileLoginScreen
+import com.jp.foodyvilla.presentation.screens.login.OtpVerificationScreen
 import com.jp.foodyvilla.presentation.utils.HideSystemBars
 import com.jp.foodyvilla.ui.theme.AppTheme
 
@@ -25,6 +27,9 @@ class MainActivity : ComponentActivity() {
             AppTheme(dynamicColor = false) {
                 HideSystemBars()
 
+//                MobileLoginScreen { }
+
+//                OtpVerificationScreen {  }
                 FoodyVillaNavGraph()
 //            val context = LocalContext.current
 //                GoogleSignInScreen()

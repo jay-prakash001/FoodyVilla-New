@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,6 +34,8 @@ import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+
+import com.jp.foodyvilla.R
 
 @Composable
 fun SplashScreen(onSplashComplete: () -> Unit) {
@@ -93,7 +97,7 @@ fun SplashScreen0(onFinished: () -> Unit) {
     )
 
     Box(
-        Modifier.fillMaxSize().background(Red),
+        Modifier.fillMaxSize().background(Color(0xFFB7131A)),
         contentAlignment = Alignment.Center
     ) {
         /* decorative pulsing circles */
@@ -108,21 +112,25 @@ fun SplashScreen0(onFinished: () -> Unit) {
         ) {
             /* plate circle */
             Box(
-                Modifier.size(110.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.15f)),
+                Modifier.size(200.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🍽️", fontSize = 54.sp,
-                    modifier = Modifier.graphicsLayer(rotationZ = plateRock))
+//                Text("🍽️", fontSize = 54.sp,
+//                    modifier = Modifier.graphicsLayer(rotationZ = plateRock))
+
+                Icon(painter = painterResource(R.drawable.logo_new), contentDescription = null,
+                    tint =White.copy(alpha = 0.75f),
+                    modifier = Modifier.size(180.dp).graphicsLayer(rotationZ = plateRock))
             }
 
             Spacer(Modifier.height(24.dp))
 
             /* brand name – Bebas Neue via displayLarge */
-            Text(
-                "FoodyVilla",
-                style     = MaterialTheme.typography.displayLarge.copy(color = White),
-                textAlign = TextAlign.Center
-            )
+//            Text(
+//                "FoodyVilla",
+//                style     = MaterialTheme.typography.displayLarge.copy(color = White),
+//                textAlign = TextAlign.Center
+//            )
 
             Spacer(Modifier.height(6.dp))
 
@@ -170,7 +178,7 @@ private fun PulsingCircle(size: Dp, offsetX: Dp, offsetY: Dp, delay: Int) {
             .scale(sc)
             .graphicsLayer(alpha = al)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.06f))
+            .background(Color.White.copy(.2f))
     )
 }
 object FoodyTheme {

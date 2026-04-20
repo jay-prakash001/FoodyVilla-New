@@ -87,7 +87,6 @@ import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(
     onItemClick: (Int) -> Unit,
-    onCartClick: () -> Unit,
     viewModel: HomeViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -155,25 +154,6 @@ fun HomeScreen(
                         .padding(20.dp)
                 ) {
                     Column {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween){
-                            Text(
-                                "Good day, Foodie 👋",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colors.onPrimaryContainer
-                            )
-
-                            IconButton(onClick = onCartClick) {
-                                Icon(
-                                    Icons.Default.ShoppingCart,
-                                    contentDescription = "Cart",
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
-
-
-
-                        Spacer(Modifier.height(6.dp))
 
                         Text(
                             "Order Delicious\nFood Today",
@@ -335,6 +315,7 @@ fun HomeScreen(
                         onAddToCart = {
                             viewModel.addItemToCart(item)
                         },
+                        homeViewModel = viewModel,
                         onClick = { onItemClick(item.id) },
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                     )
@@ -432,7 +413,7 @@ fun BannerSlider(
     // Auto-scroll
     LaunchedEffect(Unit) {
         while (true) {
-            delay(3000)
+            delay(2000)
             if (banners.isNotEmpty()) {
                 val nextPage = (pagerState.currentPage + 1) % banners.size
                 pagerState.animateScrollToPage(nextPage)
@@ -450,14 +431,14 @@ fun BannerSlider(
         ) { page ->
 
             val banner = banners[page]
-
+            Column() {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
                 shape = MaterialTheme.shapes.medium
             ) {
-                Box {
+
                     AsyncImage(
                         model = banner.img_url,
                         contentDescription = banner.title,
@@ -466,14 +447,15 @@ fun BannerSlider(
                     )
 
                     // Optional title overlay
-                    Text(
-                        text = banner.title,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(12.dp)
-                    )
+
                 }
+                Text(
+                    text = banner.title,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+//                            .align(Alignment.BottomStart)
+                        .padding(12.dp)
+                )
             }
         }
 
@@ -510,8 +492,11 @@ fun FoodCard(
     item: FoodItem,
     onAddToCart: () -> Unit,
     onClick: () -> Unit,
+    homeViewModel: HomeViewModel,
     modifier: Modifier = Modifier
 ) {
+    val homeState = homeViewModel.uiState.collectAsStateWithLifecycle().value
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -598,19 +583,24 @@ fun FoodCard(
                         fontWeight = FontWeight.Black
                     )
                 )
-                FilledIconButton(
-                    onClick = onAddToCart,
+
+
+                if(!homeState.cartItems.any { it.foodItem.id == item.id }){
+                    FilledIconButton(
+                        onClick = onAddToCart,
 //                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Add to cart",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Add to cart",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
+
             }
         }
     }

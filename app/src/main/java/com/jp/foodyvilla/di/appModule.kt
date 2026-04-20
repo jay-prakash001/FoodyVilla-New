@@ -11,8 +11,10 @@ import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
 import com.jp.foodyvilla.presentation.screens.menu.MenuViewModel
 import com.jp.foodyvilla.presentation.screens.offers.OffersViewModel
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsViewModel
+import com.russhwolf.settings.Settings
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.storage.Storage
 import io.ktor.client.engine.okhttp.OkHttp
@@ -31,6 +33,7 @@ val appModule = module{
             install(Auth)
             install(Postgrest)
             install(Storage)
+            install(Functions)
             httpEngine = OkHttp.create()
         }
     }
