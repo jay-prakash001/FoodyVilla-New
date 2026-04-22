@@ -96,12 +96,20 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt:$supabaseVersion")
     implementation("io.github.jan-tennert.supabase:storage-kt:$supabaseVersion")
     implementation("io.github.jan-tennert.supabase:functions-kt:${supabaseVersion}")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:${supabaseVersion}") // or latest
 
     // Required
     implementation("io.ktor:ktor-client-okhttp:3.4.2")
+    implementation("io.ktor:ktor-client-content-negotiation:3.4.2")
 
     // sign in with google
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+    // lottie
+    implementation("com.airbnb.android:lottie-compose:6.7.1")
+
+    //location
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 
 
 }

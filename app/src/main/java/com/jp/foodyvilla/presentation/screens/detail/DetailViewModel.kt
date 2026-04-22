@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
 import com.jp.foodyvilla.data.model.FoodItem
+import com.jp.foodyvilla.data.repo.CartRepository
 import com.jp.foodyvilla.data.repo.ProductRepo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -21,6 +23,7 @@ data class DetailUiState(
 
 class DetailViewModel(
     private val foodRepository: ProductRepo,
+    private  val cartRepository: CartRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DetailUiState())
@@ -39,6 +42,14 @@ class DetailViewModel(
 
 
 
+    fun updateQuantity(quantity: Int) {
+        _uiState.update { it.copy(quantity = quantity) }
+        viewModelScope.launch {
+            val itemId = _uiState.value.item?.id ?: return@launch
+            cartRepository.addToCart(itemId,quantity).collectLatest { println("Details Screen item quantity changed $it") }
+        }
+
+    }
     fun increment() = _uiState.update { it.copy(quantity = it.quantity + 1) }
     fun decrement() = _uiState.update { it.copy(quantity = maxOf(1, it.quantity - 1)) }
     fun toggleWishlist() = _uiState.update { it.copy(isWishlisted = !it.isWishlisted) }

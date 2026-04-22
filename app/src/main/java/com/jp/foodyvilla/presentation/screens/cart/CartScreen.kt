@@ -1,7 +1,8 @@
 package com.jp.foodyvilla.presentation.screens.cart
 
-import android.content.Intent
-import android.net.Uri
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,237 +59,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.jp.foodyvilla.data.model.CartItem
+import com.jp.foodyvilla.data.model.cart.CartItem
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.home.QuantitySelector
 import com.jp.foodyvilla.presentation.screens.home.VegDot
-import java.net.URLEncoder
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CartScreen0(
-    onBack: () -> Unit,
-    onBrowseMenu: () -> Unit,
-    viewModel: HomeViewModel
-) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var customerName by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var instructions by remember { mutableStateOf("") }
-    var orderType by remember { mutableStateOf("Delivery") }
-    val context = LocalContext.current
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Your Cart", style = MaterialTheme.typography.headlineLarge) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-            )
-        },
-        bottomBar = {
-            if (state.cartItems.isNotEmpty()) {
-                Surface(shadowElevation = 8.dp) {
-                    Button(
-                        onClick = {
-                            val message = viewModel.generateWhatsAppMessage(
-                                state,
-                                customerName,
-                                phone,
-                                address,
-                                orderType,
-                                instructions
-                            )
-
-                            val url = "https://wa.me/917067371183?text=${
-                                URLEncoder.encode(
-                                    message,
-                                    "UTF-8"
-                                )
-                            }"
-
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(16.dp)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text(
-                            "Place Order • ₹${"%.2f".format(viewModel.getTotalCartValue())}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-        }
-    ) { padding ->
-
-
-        if (state.cartItems.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.ShoppingBag,
-                        contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text("Your cart is empty", style = MaterialTheme.typography.headlineMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Add something delicious!",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    Button(
-                        onClick = onBrowseMenu,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text("Browse Menu", color = Color.White)
-                    }
-                }
-            }
-            return@Scaffold
-        }
-
-        LazyColumn(
-            contentPadding = PaddingValues(
-                top = padding.calculateTopPadding() + 8.dp,
-                bottom = padding.calculateBottomPadding() + 16.dp,
-                start = 16.dp,
-                end = 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(state.cartItems, key = { it.foodItem.id }) { cartItem ->
-                CartItemCard(
-                    cartItem = cartItem,
-                    onIncrement = {
-                        viewModel.updateCartItemQuantity(
-                            cartItem.foodItem,
-                            cartItem.quantity + 1
-                        )
-                    },
-                    onDecrement = {
-                        viewModel.updateCartItemQuantity(
-                            cartItem.foodItem,
-                            cartItem.quantity - 1
-                        )
-                    },
-                    onRemove = { viewModel.removeFromCart(cartItem.foodItem.id) }
-                )
-            }
-
-            // Delivery info
-            item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-
-                        Text("Order Details", style = MaterialTheme.typography.titleLarge)
-
-                        OutlinedTextField(
-                            value = customerName,
-                            onValueChange = { customerName = it },
-                            label = { Text("Customer Name") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = phone,
-                            onValueChange = { phone = it },
-                            label = { Text("Phone Number") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = address,
-                            onValueChange = { address = it },
-                            label = { Text("Address") },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = orderType == "Delivery"
-                        )
-
-                        OutlinedTextField(
-                            value = instructions,
-                            onValueChange = { instructions = it },
-                            label = { Text("Instructions (optional)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Order Type
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("Delivery", "Pickup", "Dine-In").forEach { type ->
-                                FilterChip(
-                                    selected = orderType == type,
-                                    onClick = { orderType = type },
-                                    label = { Text(type) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Order summary
-            item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("Order Summary", style = MaterialTheme.typography.titleLarge)
-//                        HorizontalDivider()
-//                        SummaryRow("Subtotal", "₹${"%.2f".format(state.cartItems)}")
-//                        SummaryRow("Taxes (5%)", "₹${"%.2f".format(state.taxes)}")
-//                        SummaryRow("Delivery Fee", "FREE", valueColor = SecondaryGreen)
-//                        HorizontalDivider(thickness = 1.5.dp)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Total", style = MaterialTheme.typography.titleLarge)
-                            Text(
-                                "₹${"%.2f".format(viewModel.getTotalCartValue())}",
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Black
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -296,6 +72,25 @@ fun CartScreen(
     onBrowseMenu: () -> Unit,
     viewModel: HomeViewModel
 ) {
+
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.getCartItems()
+    }
+
+
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var customerName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -308,7 +103,6 @@ fun CartScreen(
     var phoneTouched by remember { mutableStateOf(false) }
     var addressTouched by remember { mutableStateOf(false) }
 
-    val context = LocalContext.current
 
     // Validation
     val nameError = if (nameTouched && customerName.isBlank()) "Name is required" else null
@@ -317,7 +111,8 @@ fun CartScreen(
         phoneTouched && !phone.matches(Regex("^[+]?[0-9]{7,15}$")) -> "Enter a valid phone number"
         else -> null
     }
-    val addressError = if (orderType == "Delivery" && addressTouched && address.isBlank()) "Address is required for delivery" else null
+    val addressError =
+        if (orderType == "Delivery" && addressTouched && address.isBlank()) "Address is required for delivery" else null
 
     val isFormValid = customerName.isNotBlank()
             && phone.matches(Regex("^[+]?[0-9]{7,15}$"))
@@ -340,20 +135,23 @@ fun CartScreen(
                 Surface(shadowElevation = 8.dp) {
                     Button(
                         onClick = {
-                            // Force-touch all fields to surface any remaining errors
-                            nameTouched = true
-                            phoneTouched = true
-                            addressTouched = true
+//                            // Force-touch all fields to surface any remaining errors
+//                            nameTouched = true
+//                            phoneTouched = true
+//                            addressTouched = true
+//
+//                            if (!isFormValid) return@Button
+//
+//                            val message = viewModel.generateWhatsAppMessage(
+//                                state, customerName, phone, address, orderType, instructions
+//                            )
+//                            val url = "https://wa.me/917067371183?text=${
+//                                URLEncoder.encode(message, "UTF-8")
+//                            }"
+//                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
-                            if (!isFormValid) return@Button
+                            viewModel.placeOrder(address = address, customerName = customerName, phone = phone, orderType = orderType, instruction = instructions)
 
-                            val message = viewModel.generateWhatsAppMessage(
-                                state, customerName, phone, address, orderType, instructions
-                            )
-                            val url = "https://wa.me/917067371183?text=${
-                                URLEncoder.encode(message, "UTF-8")
-                            }"
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -424,16 +222,17 @@ fun CartScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(state.cartItems, key = { it.foodItem.id }) { cartItem ->
+            items(state.cartItems, key = { it.products!!.id }) { cartItem ->
                 CartItemCard(
                     cartItem = cartItem,
                     onIncrement = {
-                        viewModel.updateCartItemQuantity(cartItem.foodItem, cartItem.quantity + 1)
+
+                        viewModel.updateCartItemQuantity(cartItem.products!!, cartItem.qty + 1)
                     },
                     onDecrement = {
-                        viewModel.updateCartItemQuantity(cartItem.foodItem, cartItem.quantity - 1)
+                        viewModel.updateCartItemQuantity(cartItem.products!!, cartItem.qty - 1)
                     },
-                    onRemove = { viewModel.removeFromCart(cartItem.foodItem.id) }
+                    onRemove = { viewModel.removeFromCart(cartItem.products!!.id) }
                 )
             }
 
@@ -616,8 +415,8 @@ private fun CartItemCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = cartItem.foodItem.image[0],
-                contentDescription = cartItem.foodItem.name,
+                model = cartItem.products!!.image[0],
+                contentDescription = cartItem.products!!.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(80.dp)
@@ -628,15 +427,15 @@ private fun CartItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    VegDot(isVeg = cartItem.foodItem.isVeg)
+                    VegDot(isVeg = cartItem.products?.isVeg ?: false)
                     Text(
-                        cartItem.foodItem.name,
+                        cartItem.products?.name ?: "N/A",
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1
                     )
                 }
                 Text(
-                    "₹${cartItem.foodItem.price}",
+                    "₹${cartItem.products?.price}",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -644,7 +443,7 @@ private fun CartItemCard(
                 )
                 Spacer(Modifier.height(8.dp))
                 QuantitySelector(
-                    quantity = cartItem.quantity,
+                    quantity = cartItem.qty,
                     onDecrement = onDecrement,
                     onIncrement = onIncrement
                 )

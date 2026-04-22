@@ -1,5 +1,6 @@
 package com.jp.foodyvilla.presentation.screens.login
 
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -25,6 +26,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -32,6 +34,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import com.jp.foodyvilla.presentation.navigation.Screen
+import com.jp.foodyvilla.presentation.utils.UiState
 import kotlinx.coroutines.delay
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,10 +46,27 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun MobileLoginScreen(
+    loginViewModel: LoginViewModel,
+    navController: NavController,
     onGetOtp: (String) -> Unit = {}
 ) {
-    var mobileNumber by remember { mutableStateOf("") }
+    var mobileNumber = loginViewModel.phoneNumber.collectAsStateWithLifecycle().value
 
+    val getOtpState = loginViewModel.getOtpState.collectAsStateWithLifecycle().value
+    val context = LocalContext.current
+    when(getOtpState){
+        is UiState.Error -> {
+            Toast.makeText(context, getOtpState.exception.message ?: "Something went wrong...", Toast.LENGTH_SHORT).show()
+        }
+        UiState.Loading -> {
+            Toast.makeText(context, "Verifying...", Toast.LENGTH_SHORT).show()
+
+        }
+        is UiState.Success<*> ->{
+            navController.navigate(Screen.Otp)
+        }
+        else -> {}
+    }
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -137,7 +160,7 @@ fun MobileLoginScreen(
                 // Number field
                 OutlinedTextField(
                     value = mobileNumber,
-                    onValueChange = { if (it.length <= 10 && it.all(Char::isDigit)) mobileNumber = it },
+                    onValueChange = { if (it.length <= 10 && it.all(Char::isDigit)) loginViewModel.updatePhone(it) },
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),
@@ -227,15 +250,19 @@ fun MobileLoginScreen(
 
 @Composable
 fun OtpVerificationScreen(
-    maskedPhone: String = "+91 ••••••••42",
+    maskedPhone: String = "+91 **********",
+    loginViewModel: LoginViewModel,
+    navController: NavController,
     onVerify: (String) -> Unit = {},
     onResendOtp: () -> Unit = {}
 ) {
-    var otpValue by remember { mutableStateOf("") }
     val otpLength = 6
-    val focusRequester = remember { FocusRequester() }
 
-    // Countdown timer (54 seconds)
+    var otp by remember { mutableStateOf("") }
+    val focusRequesters = remember { List(otpLength) { FocusRequester() } }
+
+    val loginState = loginViewModel.loginUiState.collectAsStateWithLifecycle().value
+    // ── Countdown timer ─────────────────────────────
     var countdown by remember { mutableIntStateOf(54) }
     var timerRunning by remember { mutableStateOf(true) }
 
@@ -250,9 +277,23 @@ fun OtpVerificationScreen(
     }
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        focusRequesters[0].requestFocus()
     }
 
+    val context = LocalContext.current
+    when(loginState){
+        is UiState.Error -> {
+            Toast.makeText(context, loginState.exception.message ?: "Something went wrong...", Toast.LENGTH_SHORT).show()
+        }
+        UiState.Loading -> {
+            Toast.makeText(context, "Verifying...", Toast.LENGTH_SHORT).show()
+
+        }
+        is UiState.Success<*> ->{
+            navController.navigate(Screen.Home)
+        }
+        else -> {}
+    }
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -266,7 +307,7 @@ fun OtpVerificationScreen(
             verticalArrangement = Arrangement.Center
         ) {
 
-            // ── Brand Icon ──────────────────────────────────────────────────
+            // ── Icon ───────────────────────────────────
             Surface(
                 modifier = Modifier.size(80.dp),
                 shape = RoundedCornerShape(20.dp),
@@ -277,8 +318,7 @@ fun OtpVerificationScreen(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Filled.Phone,
-                        contentDescription = "Brand",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        contentDescription = null,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -286,58 +326,65 @@ fun OtpVerificationScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // ── Heading ─────────────────────────────────────────────────────
+            // ── Title ──────────────────────────────────
             Text(
                 text = "Verify your number",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.onBackground
+                )
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "Sent to $maskedPhone",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodyMedium
             )
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // ── OTP Boxes ───────────────────────────────────────────────────
-            val otpLength = 6
-            val focusRequesters = List(otpLength) { FocusRequester() }
-
-            var otpValues by remember {
-                mutableStateOf(List(otpLength) { "" })
-            }
-
+            // ── OTP Boxes ──────────────────────────────
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 repeat(otpLength) { index ->
 
-                    val value = otpValues[index]
+                    val char = otp.getOrNull(index)?.toString() ?: ""
 
                     BasicTextField(
-                        value = value,
+                        value = char,
                         onValueChange = { input ->
+
                             if (input.length <= 1 && input.all { it.isDigit() }) {
 
-                                val newList = otpValues.toMutableList()
-                                newList[index] = input
-                                otpValues = newList
+                                val newOtp = StringBuilder(otp)
+
+                                if (input.isNotEmpty()) {
+                                    if (otp.length > index) {
+                                        newOtp.setCharAt(index, input[0])
+                                    } else {
+                                        newOtp.insert(index, input)
+                                    }
+                                } else if (otp.length > index) {
+                                    newOtp.deleteCharAt(index)
+                                }
+
+                                otp = newOtp.toString()
 
                                 // 👉 Move forward
                                 if (input.isNotEmpty() && index < otpLength - 1) {
                                     focusRequesters[index + 1].requestFocus()
                                 }
 
+                                // 👉 Move back on delete
+                                if (input.isEmpty() && index > 0) {
+                                    focusRequesters[index - 1].requestFocus()
+                                }
+
                                 // 👉 Auto submit
-                                if (otpValues.all { it.isNotEmpty() }) {
-                                    onVerify(otpValues.joinToString(""))
+                                if (otp.length == otpLength) {
+                                    onVerify(otp)
                                 }
                             }
                         },
@@ -347,20 +394,19 @@ fun OtpVerificationScreen(
                             .focusRequester(focusRequesters[index])
                             .border(
                                 width = 2.dp,
-                                color = if (value.isNotEmpty())
+                                color = if (char.isNotEmpty())
                                     MaterialTheme.colorScheme.primary
                                 else
                                     MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(14.dp)
                             )
                             .background(
-                                if (value.isNotEmpty())
+                                if (char.isNotEmpty())
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                                 else
                                     MaterialTheme.colorScheme.surface,
                                 RoundedCornerShape(14.dp)
-                            )
-                            .padding(0.dp),
+                            ),
                         singleLine = true,
                         textStyle = LocalTextStyle.current.copy(
                             textAlign = TextAlign.Center,
@@ -370,13 +416,6 @@ fun OtpVerificationScreen(
                         ),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Number
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onNext = {
-                                if (index < otpLength - 1) {
-                                    focusRequesters[index + 1].requestFocus()
-                                }
-                            }
                         )
                     )
                 }
@@ -384,128 +423,52 @@ fun OtpVerificationScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // ── Verify & Proceed Button ─────────────────────────────────────
+            // ── Verify Button ──────────────────────────
             Button(
-                onClick = { onVerify(otpValue) },
+                onClick = { onVerify(otp) },
+                enabled = otp.length == otpLength,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = otpValue.length == otpLength,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
                     text = "Verify & Proceed",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    )
+                    fontWeight = FontWeight.Bold
                 )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // ── Resend Timer ────────────────────────────────────────────────
+            // ── Timer ──────────────────────────────────
             if (timerRunning) {
-                Surface(
-                    shape = RoundedCornerShape(50.dp),
-                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Timer,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        val formatted = String.format("%02d:%02d", countdown / 60, countdown % 60)
-                        Text(
-                            text = "RESEND IN $formatted",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                letterSpacing = 0.8.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
+                val formatted = String.format("%02d:%02d", countdown / 60, countdown % 60)
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Resend in $formatted",
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
-            // ── Resend OTP Link ─────────────────────────────────────────────
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ── Resend ─────────────────────────────────
             TextButton(
                 onClick = {
                     if (!timerRunning) {
                         onResendOtp()
                         countdown = 54
                         timerRunning = true
-                        otpValue = ""
+                        otp = ""
+                        focusRequesters[0].requestFocus()
                     }
                 },
                 enabled = !timerRunning
             ) {
-                Text(
-                    text = "Resend OTP",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    color = if (!timerRunning)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.outline
-                )
+                Text("Resend OTP")
             }
 
             Spacer(modifier = Modifier.height(48.dp))
-
-            // ── Support link ────────────────────────────────────────────────
-            Row(
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    "Having trouble? ",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "Contact Support",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
         }
-    }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PREVIEWS
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun MobileLoginScreenPreview() {
-    MaterialTheme {
-        MobileLoginScreen()
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun OtpVerificationScreenPreview() {
-    MaterialTheme {
-        OtpVerificationScreen()
     }
 }

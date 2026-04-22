@@ -313,7 +313,7 @@ fun HomeScreen(
                     FoodCard(
                         item = item,
                         onAddToCart = {
-                            viewModel.addItemToCart(item)
+                            viewModel.updateCartItemQuantity(item)
                         },
                         homeViewModel = viewModel,
                         onClick = { onItemClick(item.id) },
@@ -585,7 +585,7 @@ fun FoodCard(
                 )
 
 
-                if(!homeState.cartItems.any { it.foodItem.id == item.id }){
+                if(!homeState.cartItems.any { it.products?.id == item.id }){
                     FilledIconButton(
                         onClick = onAddToCart,
 //                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),

@@ -1,7 +1,6 @@
 package com.jp.foodyvilla.data.repo
 
 import Banner
-import com.jp.foodyvilla.data.model.Offer
 import com.jp.foodyvilla.data.model.OfferFood
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from

@@ -1,7 +1,9 @@
 package com.jp.foodyvilla.data.repo
 
 import android.content.Context
+import android.system.Os.remove
 import android.util.Log
+import com.jp.foodyvilla.data.model.login.LoginResponse
 import com.jp.foodyvilla.presentation.utils.UiState
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -14,6 +16,9 @@ import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.utils.EmptyContent.headers
+import io.ktor.http.headers
+import io.ktor.utils.io.InternalAPI
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.booleanOrNull
@@ -32,9 +37,7 @@ class AuthRepo(
     // client id : 936302589972-bjm4nnn6sie66eaqalfi0l6re6ja7fju.apps.googleusercontent.com
 
 
-
-
-    @OptIn(ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class, InternalAPI::class)
     fun loginWithOtp(
         phone: String,
         otp: String? = null
@@ -43,15 +46,88 @@ class AuthRepo(
         emit(UiState.Loading)
 
         try {
-            // ── 1. Invoke the edge function ───────────────────────────────
-            val response = supabase.functions.invoke(
-                function = "login",
-                body = buildJsonObject {
-                    put("phone", phone)
-                    otp?.let { put("otp", it) }
-                }
+            val response = supabase.functions.invoke("login") {
+                body = """
+        {
+            "phone": "$phone"
+            ${if (otp != null) """, "otp": "$otp"""" else ""}
+        }
+    """.trimIndent()
+            }
+
+            val bodyString = response.bodyAsText()
+
+            val loginResponse = Json {
+                ignoreUnknownKeys = true
+            }.decodeFromString<LoginResponse>(bodyString)
+
+            println("Parsed response $loginResponse")
+
+            // ❌ API failure
+            if (!loginResponse.success) {
+                emit(UiState.Error(Exception(loginResponse.message)))
+                return@flow
+            }
+
+            // ✅ OTP sent (no otp provided)
+            if (otp == null) {
+                emit(UiState.Success("OTP_SENT"))
+                return@flow
+            }
+
+            // ✅ Login success
+            val accessToken = loginResponse.access_token
+                ?: throw Exception("Missing access token")
+
+            val refreshToken = loginResponse.refresh_token
+                ?: throw Exception("Missing refresh token")
+
+            val expiresIn = loginResponse.expires_in ?: 3600L
+
+            val session = UserSession(
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                expiresIn = expiresIn,
+                tokenType = "bearer",
+                user = null
             )
 
+            supabase.auth.importSession(session)
+            supabase.auth.refreshCurrentSession()
+            emit(UiState.Success("LOGIN_SUCCESS"))
+
+        } catch (e: Exception) {
+            emit(UiState.Error(e))
+        }
+    }
+
+    @OptIn(ExperimentalTime::class, InternalAPI::class)
+    fun loginWithOtp0(
+        phone: String,
+        otp: String? = null
+    ): Flow<UiState<String>> = flow {
+
+
+        println("Phone $phone  otp $otp")
+        emit(UiState.Loading)
+
+        try {
+            // ── 1. Invoke the edge function ───────────────────────────────
+//            val response = supabase.functions.invoke("login") {
+//                body = buildJsonObject {
+//                    put("phone", phone)
+//                    otp?.let { put("otp", it) }
+//                }
+//            }
+
+            val response = supabase.functions.invoke("login") {
+                body = """
+        {
+            "phone": "$phone"
+            ${if (otp != null) """, "otp": "$otp"""" else ""}
+        }
+    """.trimIndent()
+            }
             // ── 2. Read body — FIX: use bodyAsText() not bodyBytes ────────
             //    `bodyBytes` is not a property on Ktor's HttpResponse.
             //    `bodyAsText()` is the correct suspend extension (ktor-client-core 3.x).
@@ -64,6 +140,8 @@ class AuthRepo(
             //            FIX: `.booleanOrNull` → `.boolean` (non-nullable after null-check)
             //            Both work, but `.boolean` throws on wrong type which is desirable.
 
+
+            println("REspononse supabase $response, $bodyString , $json , $success")
             if (!success) {
                 val message = json["message"]?.jsonPrimitive?.content ?: "Unknown error"
                 emit(UiState.Error(Exception(message)))
@@ -88,6 +166,7 @@ class AuthRepo(
                 ?.toLongOrNull()
                 ?: 3600L
 
+            println("Response $response $sessionJson")
             val userSession = UserSession(
                 accessToken  = sessionJson["access_token"]?.jsonPrimitive?.content  ?: "",
                 refreshToken = sessionJson["refresh_token"]?.jsonPrimitive?.content ?: "",
@@ -103,9 +182,13 @@ class AuthRepo(
             emit(UiState.Success("LOGIN_SUCCESS"))
 
         } catch (e: Exception) {
+
+
             emit(UiState.Error(e))
         }
     }
+
+
     fun signInWithSupabase(idToken: String): Flow<UiState<UserInfo>> = flow {
 
         println("Token : $idToken")

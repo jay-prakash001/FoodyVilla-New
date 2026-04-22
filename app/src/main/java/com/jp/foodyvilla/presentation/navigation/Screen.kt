@@ -18,6 +18,8 @@ sealed interface Screen {
     @Serializable
     data object Home : Screen
 
+
+
     @Serializable
     data class Detail(val itemId: Int) : Screen
 
@@ -47,7 +49,7 @@ sealed interface Screen {
     data object Login : Screen
 
     @Serializable
-    data object Register : Screen
+    data object Otp : Screen
 
     @Serializable
     data object Profile : Screen

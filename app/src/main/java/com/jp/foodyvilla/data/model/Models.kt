@@ -31,42 +31,13 @@ data class FoodItem(
 
 
 
-@Serializable
-data class CartItem(
-    val foodItem: FoodItem = FoodItem(),
-    val quantity: Int = 1
-) {
-    val totalPrice: Double get() = foodItem.price * quantity
-}
+
 
 @Serializable
 data class Category(
     val id: String,
     val name: String,
     val emoji: String
-)
-
-enum class OrderStatus { PLACED, PREPARING, ON_THE_WAY, DELIVERED }
-
-@Serializable
-data class Order(
-    val id: String = "",
-    val userId: String = "",
-    val items: List<CartItem> = emptyList(),
-    val total: Double = 0.0,
-    val status: String = OrderStatus.PLACED.name,
-    val createdAt: String = "",
-    val deliveryAddress: String = ""
-)
-
-@Serializable
-data class UserProfile(
-    val uid: String = "",
-    val displayName: String = "",
-    val email: String = "",
-    val photoURL: String = "",
-    val phoneNumber: String = "",
-    val address: String = ""
 )
 
 @Serializable
@@ -81,14 +52,3 @@ data class Review(
     val img_url: List<String> = emptyList() // ✅ NEW
 )
 
-@Serializable
-data class Offer(
-    val id: String = "",
-    val title: String = "",
-    val description: String = "",
-    val discount: String = "",
-    val code: String = "",
-    val validUntil: String = "",
-    val imageUrl: String = "",
-    val color: Long = 0xFF_E53935
-)
