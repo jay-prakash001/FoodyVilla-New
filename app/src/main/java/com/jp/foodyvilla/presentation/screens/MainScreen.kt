@@ -1,6 +1,9 @@
 package com.jp.foodyvilla.presentation.screens
 
 
+// Compose UI
+
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -9,15 +12,26 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Person3
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
@@ -27,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -36,15 +51,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
+import com.jp.foodyvilla.R
 import com.jp.foodyvilla.presentation.components.FoodyVillaNavBar
 import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.presentation.screens.contactUs.ContactUsScreen
@@ -54,31 +78,6 @@ import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
 import org.koin.androidx.compose.koinViewModel
-import com.jp.foodyvilla.R
-
-
-// Compose UI
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.graphics.Color
-
-
-import androidx.compose.foundation.layout.Row
-
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-
-
-import androidx.compose.material3.Surface
-
-import androidx.compose.material.icons.filled.ArrowForwardIos
-import androidx.compose.ui.Alignment
-
-
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +97,8 @@ fun MainScreen(
     )
     val title = titles[selectedPage]
     Scaffold(
+        containerColor = Color.Transparent,
+
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
@@ -146,8 +147,19 @@ fun MainScreen(
 //        },
         bottomBar = {
 
-            Column(modifier  = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                ZomatoCartBar(homeState.cartItems.size, homeState.cartItems.sumOf { it.totalPrice ?: 0.0 }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Transparent),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                ZomatoCartBar(
+                    cartItemCount = homeState.cartItems.size,
+                    totalPrice = homeState.cartItems.sumOf { it.totalPrice ?: 0.0 },
+                    homeState.cartItems.mapNotNull {
+                        it.products?.image?.firstOrNull()
+                    }) {
                     navController.navigate(Screen.Cart)
                 }
                 FoodyVillaNavBar(
@@ -164,6 +176,7 @@ fun MainScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.Transparent)
                 .padding(innerPadding)
         ) {
 
@@ -207,6 +220,7 @@ fun MainScreen(
 fun ZomatoCartBar(
     cartItemCount: Int,
     totalPrice: Double,
+    items: List<String> = emptyList(),
     onClick: () -> Unit
 ) {
     val composition by rememberLottieComposition(
@@ -238,13 +252,13 @@ fun ZomatoCartBar(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .fillMaxWidth().background(Color.Transparent)
+                .padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
+//                    .fillMaxWidth()
+                    .height(80.dp)
                     .clickable { onClick() },
                 shape = RoundedCornerShape(12.dp),
                 color = Color(0xFFE23744) // Zomato red
@@ -256,23 +270,28 @@ fun ZomatoCartBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Left — item count badge
-                    Box(
+// Option A: Simple Row with negative padding for overlap
+                    Row(
                         modifier = Modifier
-                            .size(32.dp)
-                            .background(
-                                color = Color.White.copy(alpha = 0.25f),
-                                shape = RoundedCornerShape(6.dp)
-                            ),
-                        contentAlignment = Alignment.Center
+                            .height(60.dp)
+
                     ) {
-                        Text(
-                            text = "$cartItemCount",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
+                        items.take(5).forEachIndexed { index, imageUrl ->
+                            AsyncImage(
+                                model = imageUrl,
+                                contentDescription = null, contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .offset(x = (-12 * index).dp)  // 👈 negative = overlap left
+                                    .zIndex((5 - index).toFloat())  // 👈 first image on top
+                                    .border(2.dp, Color(0xFFE23744), CircleShape)
+                                    .clip(CircleShape)
+                            )
+                        }
+
                     }
+                    // Left — item count badge
+
 
                     // Center — Lottie + "View Cart"
                     Row(
@@ -316,6 +335,7 @@ fun ZomatoCartBar(
         }
     }
 }
+
 @Composable
 fun CartFab(
     cartItemCount: Int,

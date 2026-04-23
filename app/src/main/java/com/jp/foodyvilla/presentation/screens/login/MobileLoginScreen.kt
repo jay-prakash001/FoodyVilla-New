@@ -56,10 +56,10 @@ fun MobileLoginScreen(
     val context = LocalContext.current
     when(getOtpState){
         is UiState.Error -> {
-            Toast.makeText(context, getOtpState.exception.message ?: "Something went wrong...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context,  "Try Again After Sometime...", Toast.LENGTH_SHORT).show()
         }
         UiState.Loading -> {
-            Toast.makeText(context, "Verifying...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Sending OTP...", Toast.LENGTH_SHORT).show()
 
         }
         is UiState.Success<*> ->{
@@ -283,7 +283,7 @@ fun OtpVerificationScreen(
     val context = LocalContext.current
     when(loginState){
         is UiState.Error -> {
-            Toast.makeText(context, loginState.exception.message ?: "Something went wrong...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context,  "Try Again After Sometime...", Toast.LENGTH_SHORT).show()
         }
         UiState.Loading -> {
             Toast.makeText(context, "Verifying...", Toast.LENGTH_SHORT).show()

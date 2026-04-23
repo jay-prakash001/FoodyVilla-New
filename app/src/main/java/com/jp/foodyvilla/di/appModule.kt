@@ -40,7 +40,11 @@ val appModule = module{
             supabaseUrl = "https://mzeajzfhjovwyuotiywx.supabase.co",
             supabaseKey = "sb_publishable_C0Dz4fVE-_YjQIHLHqMbQQ_EWWuskzq"
         ) {
-            install(Auth)
+            install(Auth){
+                autoLoadFromStorage  = true
+                alwaysAutoRefresh = true
+
+            }
             install(Postgrest)
             install(Storage)
             install(Functions)

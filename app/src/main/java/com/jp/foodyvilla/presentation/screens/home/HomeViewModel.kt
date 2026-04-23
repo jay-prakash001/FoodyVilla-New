@@ -250,7 +250,7 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
                     id = item.id,
                     products = item,
                     qty = quantity,
-                    customer_id = _uiState.value.cartItems.first().customer_id ?: 0,
+                    customer_id =  0,
                     product_id =item.id
                 ))
             }
