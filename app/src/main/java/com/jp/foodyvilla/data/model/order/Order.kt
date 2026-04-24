@@ -16,7 +16,8 @@ data class OrderModel(
     val instruction: String? = null,
     val delivery_lat: Double? = null,
     val delivery_long: Double? = null,
-    val order_type: String? = null
+    val order_type: String? = null,
+    val transaction_id: String?  = null
 )
 
 // ───── Insert Models (separate from response models) ─────
@@ -27,6 +28,7 @@ data class OrderInsert(
     val status: String,
     val address: String,
     val phone: String,
+    val transaction_id   : String ?= null,
     val customer_name: String,
     val order_type: String? = null,
     val instruction: String? = null,

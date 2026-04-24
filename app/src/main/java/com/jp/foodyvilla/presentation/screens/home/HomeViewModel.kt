@@ -68,7 +68,22 @@ data class HomeUiState(
         get() = allItems.filter { !it.isBestSeller }
 }
 
-class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: ProductRepo, private val cartRepository: CartRepository, private val orderRepository: OrderRepository,private val locationRepository: LocationRepository) :
+
+
+data class OrderUiState(
+    val customerName: String = "",
+    val phone: String = "",
+    val address: String = "",
+    val instructions: String = "",
+    val orderType: String = "Delivery"
+)
+class HomeViewModel(
+    private val offerRepo: OfferRepo,
+    private val productRepo: ProductRepo,
+    private val cartRepository: CartRepository,
+    private val orderRepository: OrderRepository,
+    private val locationRepository: LocationRepository
+) :
     ViewModel() {
 
 
@@ -80,8 +95,31 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-    val fcm = FirebaseMessaging.getInstance()
 
+
+    private val _orderState = MutableStateFlow(OrderUiState())
+    val orderState: StateFlow<OrderUiState> = _orderState
+
+    fun updateCustomerName(value: String) {
+        _orderState.update { it.copy(customerName = value) }
+    }
+
+    fun updatePhone(value: String) {
+        _orderState.update { it.copy(phone = value) }
+    }
+
+    fun updateAddress(value: String) {
+        _orderState.update { it.copy(address = value) }
+    }
+
+    fun updateInstructions(value: String) {
+        _orderState.update { it.copy(instructions = value) }
+    }
+
+    fun updateOrderType(value: String) {
+        _orderState.update { it.copy(orderType = value) }
+    }
+    val fcm = FirebaseMessaging.getInstance()
 
 
     init {
@@ -97,7 +135,7 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
 
     }
 
-    fun getOrderedItems(){
+    fun getOrderedItems() {
         viewModelScope.launch {
             orderRepository.observeOrders().collectLatest {
                 println("orders : $it")
@@ -109,16 +147,17 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
 
     fun getCartItems() {
         viewModelScope.launch {
-            cartRepository.getCartItems().collectLatest{res->
+            cartRepository.getCartItems().collectLatest { res ->
 
                 println(" cart items : $res")
-                if(res is UiState.Success){
+                if (res is UiState.Success) {
                     _uiState.value = _uiState.value.copy(cartItems = res.data)
 
                 }
             }
         }
     }
+
     private fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -137,6 +176,7 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
             getOrderedItems()
         }
     }
+
     fun getCurrentLocation(): Flow<UiState<Pair<Double, Double>>> = flow {
         emit(UiState.Loading)
 
@@ -158,17 +198,59 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
     // ─────────────────────────────────────────
 // 🚀 PLACE ORDER
 // ─────────────────────────────────────────
+
+
+    private val _paymentState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
+    val paymentState = _paymentState.asStateFlow()
+    fun onPaymentSuccess(
+        razorpayPaymentId: String,
+        razorpayOrderId: String,
+        razorpaySignature: String
+    ) {
+        viewModelScope.launch {
+
+
+
+            println("Payment Success $razorpayPaymentId  $razorpaySignature  $razorpayOrderId")
+            // TODO: Save transaction to your DB / backend here
+//            _uiState.value = CheckoutUiState.PaymentSuccess(
+//                PaymentResult(
+//                    razorpayPaymentId = razorpayPaymentId,
+//                    razorpayOrderId = razorpayOrderId,
+//                    razorpaySignature = razorpaySignature,
+//                    productOrder = order,
+//                    status = PaymentStatus.SUCCESS
+//                )
+//            )
+//            pendingOrder = null
+
+            println("razorpayPaymentId $razorpayPaymentId")
+            println("razorpayPaymentId $razorpayPaymentId")
+            println("razorpayPaymentId $razorpayPaymentId")
+            placeOrder(transactionId = razorpayPaymentId)
+        }
+    }
+
+
+    fun onPaymentError(errorCode: Int, errorDescription: String) {
+
+        println("Payment Error $errorCode  $errorDescription ")
+
+
+//        _uiState.value = CheckoutUiState.PaymentFailed(errorCode, errorDescription)
+//        pendingOrder = null
+
+
+    }
+
+
     fun placeOrder(
-        address: String,
-        phone: String,
-        customerName: String,
-        instruction: String? = null,
-        orderType : String?= null,
-        lat: Double? = null,
-        long: Double? = null,
+        transactionId : String
     ) {
         val cartItems = _uiState.value.cartItems
 
+
+        println("Place order called with transactionId $transactionId 1")
         if (cartItems.isEmpty()) {
 //            _uiState.update { it.copy(orderError = "Cart is empty") }
             return
@@ -176,23 +258,24 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
 
         viewModelScope.launch {
 
-            getCurrentLocation().collectLatest {
-                println("Location $it")
-                if(it is UiState.Success){
+//            getCurrentLocation().collectLatest {
+//                println("Location $it")
+//                if (it is UiState.Success) {
                     orderRepository.placeOrder(
                         cartItems = cartItems,
-                        address = address,
-                        phone = phone,
-                        customerName = customerName,
-                        instruction = instruction,
-                        orderType = orderType,
-                        lat = it.data.first,
-                        long = it.data.second
+                        address = _orderState.value.address,
+                        phone = _orderState.value.phone,
+                        customerName = _orderState.value.customerName,
+                        instruction =  _orderState.value.instructions,
+                        orderType =  _orderState.value.orderType,
+                        transactionId =  transactionId
+//                        lat = it.data.first,
+//                        long = it.data.second
                     ).collectLatest { state ->
 
                         println("Order Place State $state")
-//                when (state) {
-//                    is UiState.Loading -> {
+                when (state) {
+                    is UiState.Loading -> {
 //                        _uiState.update {
 //                            it.copy(
 //                                isPlacingOrder = true,
@@ -200,31 +283,28 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
 //                                orderSuccess = null
 //                            )
 //                        }
-//                    }
-//
-//                    is UiState.Success -> {
-//                        _uiState.update {
-//                            it.copy(
-//                                isPlacingOrder = false,
-//                                orderSuccess = state.data,  // orderId
-//                                cartItems = emptyList()     // clear cart locally
-//                            )
-//                        }
-//                    }
-//
-//                    is UiState.Error -> {
-//                        _uiState.update {
-//                            it.copy(
-////                                isPlacingOrder = false,
-////                                orderError = state.exception.message ?: "Order failed"
-//                            )
-//                        }
-//                    }
-
                     }
 
-                }
-            }
+                    is UiState.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                cartItems = emptyList()
+                            )
+                        }
+                    }
+
+                    is UiState.Error -> {
+                        _uiState.update {
+                            it.copy(
+//                                isPlacingOrder = false,
+//                                orderError = state.exception.message ?: "Order failed"
+                            )
+                        }
+                    }
+
+//
+                   else->{}
+                }}
         }
     }
     // ─────────────────────────────────────────
@@ -244,14 +324,14 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
             _uiState.update { it ->
                 it.copy(cartItems = it.cartItems.filter { it.products?.id != item.id })
             }
-        }else{
+        } else {
             _uiState.update {
                 it.copy(cartItems = it.cartItems.filter { it.products?.id != item.id } + CartItem(
                     id = item.id,
                     products = item,
                     qty = quantity,
-                    customer_id =  0,
-                    product_id =item.id
+                    customer_id = 0,
+                    product_id = item.id
                 ))
             }
         }
@@ -271,9 +351,9 @@ class HomeViewModel(private val offerRepo: OfferRepo, private val productRepo: P
 
     fun removeFromCart(itemId: Int) {
         viewModelScope.launch {
-            cartRepository.addToCart(itemId, 0).collectLatest { res->
+            cartRepository.addToCart(itemId, 0).collectLatest { res ->
                 println("update cart $res")
-                if(res is UiState.Success){
+                if (res is UiState.Success) {
                     _uiState.update {
                         it.copy(cartItems = it.cartItems.filter { it.products?.id != itemId })
                     }
@@ -323,6 +403,7 @@ itemsText
 $instructions
 """.trimIndent()
     }
+
     fun getProduct() {
         viewModelScope.launch {
             try {

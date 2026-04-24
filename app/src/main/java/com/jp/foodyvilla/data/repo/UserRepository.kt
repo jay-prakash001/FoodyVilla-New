@@ -4,6 +4,7 @@ import com.jp.foodyvilla.data.model.user.UserProfile
 import com.jp.foodyvilla.presentation.utils.UiState
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -39,5 +40,27 @@ class UserRepository(private val supabase: SupabaseClient) {
              return@flow
          }
        emit(UiState.Success(response!!))
+    }
+
+
+    suspend fun updateFcmToken(
+        fcmToken: String
+    ) {
+        val userId = supabase.auth.currentUserOrNull()?.id
+            ?: throw Exception("User not logged in")
+
+        try {
+            supabase.from("users").update(
+                {
+                    set("fcm_token", fcmToken)
+                }
+            ) {
+                filter {
+                    eq("auth_user_id", userId)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

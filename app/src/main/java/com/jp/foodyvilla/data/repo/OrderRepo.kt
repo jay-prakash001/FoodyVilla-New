@@ -49,7 +49,8 @@ class OrderRepository(
         instruction: String? = null,
         lat: Double? = null,
         long: Double? = null,
-        orderType: String? = null
+        orderType: String? = null,
+        transactionId : String? =null
     ): Flow<UiState<String>> = flow {
 
         emit(UiState.Loading)
@@ -69,6 +70,7 @@ class OrderRepository(
                         customer_name = customerName,
                         order_type = orderType,
                         instruction = instruction,
+                        transaction_id = transactionId,
                         delivery_lat = lat,
                         delivery_long = long
                     )
@@ -141,6 +143,12 @@ class OrderRepository(
                 order("created_at", Order.DESCENDING)
             }
             .decodeList<OrderModel>()
+        initial.forEach {
+
+        observeOrderItems(it.id).collect { item->
+            println("Order Items $item")
+        }
+        }
         trySend(initial)
         awaitClose {
             launch {

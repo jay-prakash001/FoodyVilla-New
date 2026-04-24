@@ -2,6 +2,7 @@ package com.jp.foodyvilla.presentation.screens.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.messaging.FirebaseMessaging
 import com.jp.foodyvilla.data.model.user.UserProfile
 import com.jp.foodyvilla.data.repo.AuthRepo
 import com.jp.foodyvilla.data.repo.UserRepository
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class LoginViewModel(private val authRepo: AuthRepo, private val userRepository: UserRepository) :
     ViewModel() {
@@ -50,11 +52,12 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
     init {
         println("Login status : ${authRepo.isLoggedIn()}")
         isLoggedIn()
-viewModelScope.launch {
-    userRepository.getCurrentUserProfile().collectLatest {
-        println("User $it")
-    }
-}
+        viewModelScope.launch {
+            userRepository.getCurrentUserProfile().collectLatest {
+                println("User $it")
+            }
+        }
+        updateFcmToken()
 
     }
 
@@ -85,9 +88,23 @@ viewModelScope.launch {
                 _loginUiState.value = it
                 if (it is UiState.Success) {
                     _isLoggedIn.value = true
+                    updateFcmToken()
                 }
             }
 
+        }
+    }
+
+    fun updateFcmToken() {
+        viewModelScope.launch {
+            try {
+
+                val token = FirebaseMessaging.getInstance().token.await()
+                userRepository.updateFcmToken(token)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

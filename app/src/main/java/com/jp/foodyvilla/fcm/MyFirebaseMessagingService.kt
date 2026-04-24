@@ -3,14 +3,27 @@ package com.jp.foodyvilla.fcm
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-
+import com.jp.foodyvilla.data.repo.UserRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
+    private val userRepository: UserRepository by inject()
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("FCM", "Token: $token")
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                userRepository.updateFcmToken(token)
+            } catch (e: Exception) {
+                Log.e("FCM", "Failed to update token", e)
+            }
+        }
+
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {

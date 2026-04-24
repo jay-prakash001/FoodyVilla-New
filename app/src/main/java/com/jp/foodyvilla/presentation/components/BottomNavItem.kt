@@ -80,7 +80,7 @@ fun FoodyVillaNavBar(
             .height(80.dp) // Standard BottomBar height
             .padding(horizontal = 24.dp, vertical = 12.dp) // Floating effect
             .background(
-                color = colors.surfaceColorAtElevation(4.dp),
+                color = colors.surface,
                 shape = RoundedCornerShape(24.dp)
             )
     ) {

@@ -1,6 +1,8 @@
 package com.jp.foodyvilla.presentation.screens.cart
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -63,6 +65,8 @@ import com.jp.foodyvilla.data.model.cart.CartItem
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.home.QuantitySelector
 import com.jp.foodyvilla.presentation.screens.home.VegDot
+import com.razorpay.Checkout
+import org.json.JSONObject
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +84,6 @@ fun CartScreen(
     }
 
 
-
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -92,11 +95,12 @@ fun CartScreen(
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var customerName by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var instructions by remember { mutableStateOf("") }
-    var orderType by remember { mutableStateOf("Delivery") }
+    val orderState by viewModel.orderState.collectAsStateWithLifecycle()
+//    var customerName by remember { mutableStateOf("") }
+//    var phone by remember { mutableStateOf("") }
+//    var address by remember { mutableStateOf("") }
+//    var instructions by remember { mutableStateOf("") }
+//    var orderType by remember { mutableStateOf("Delivery") }
 
     // Track whether user has touched each field (so errors don't show before interaction)
     var nameTouched by remember { mutableStateOf(false) }
@@ -105,18 +109,18 @@ fun CartScreen(
 
 
     // Validation
-    val nameError = if (nameTouched && customerName.isBlank()) "Name is required" else null
+    val nameError = if (nameTouched && orderState.customerName.isBlank()) "Name is required" else null
     val phoneError = when {
-        phoneTouched && phone.isBlank() -> "Phone number is required"
-        phoneTouched && !phone.matches(Regex("^[+]?[0-9]{7,15}$")) -> "Enter a valid phone number"
+        phoneTouched && orderState.phone.isBlank() -> "Phone number is required"
+        phoneTouched && !orderState.phone.matches(Regex("^[+]?[0-9]{7,15}$")) -> "Enter a valid phone number"
         else -> null
     }
     val addressError =
-        if (orderType == "Delivery" && addressTouched && address.isBlank()) "Address is required for delivery" else null
+        if (orderState.orderType == "Delivery" && addressTouched && orderState.address.isBlank()) "Address is required for delivery" else null
 
-    val isFormValid = customerName.isNotBlank()
-            && phone.matches(Regex("^[+]?[0-9]{7,15}$"))
-            && (orderType != "Delivery" || address.isNotBlank())
+    val isFormValid = orderState.customerName.isNotBlank()
+            && orderState.phone.matches(Regex("^[+]?[0-9]{10,13}$"))
+            && (orderState.orderType != "Delivery" || orderState.address.isNotBlank())
 
     Scaffold(
         topBar = {
@@ -135,22 +139,20 @@ fun CartScreen(
                 Surface(shadowElevation = 8.dp) {
                     Button(
                         onClick = {
-//                            // Force-touch all fields to surface any remaining errors
-//                            nameTouched = true
-//                            phoneTouched = true
-//                            addressTouched = true
-//
-//                            if (!isFormValid) return@Button
-//
-//                            val message = viewModel.generateWhatsAppMessage(
-//                                state, customerName, phone, address, orderType, instructions
-//                            )
-//                            val url = "https://wa.me/917067371183?text=${
-//                                URLEncoder.encode(message, "UTF-8")
-//                            }"
-//                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
-                            viewModel.placeOrder(address = address, customerName = customerName, phone = phone, orderType = orderType, instruction = instructions)
+                            initiatePayment(
+                                context = context,
+                                name = orderState.customerName,
+                                contact = orderState.phone,
+                                amount = (viewModel.getTotalCartValue()*100).toString()
+                            )
+//                            viewModel.placeOrder(
+//                                address = address,
+//                                customerName = customerName,
+//                                phone = phone,
+//                                orderType = orderType,
+//                                instruction = instructions
+//                            )
 
                         },
                         modifier = Modifier
@@ -253,9 +255,9 @@ fun CartScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("Delivery", "Pickup", "Dine-In").forEach { type ->
                                 FilterChip(
-                                    selected = orderType == type,
+                                    selected = orderState.orderType == type,
                                     onClick = {
-                                        orderType = type
+                                        viewModel.updateOrderType(type)
                                         // Reset address touched state when switching away from Delivery
                                         if (type != "Delivery") addressTouched = false
                                     },
@@ -266,9 +268,9 @@ fun CartScreen(
 
                         // Customer Name
                         OutlinedTextField(
-                            value = customerName,
+                            value = orderState.customerName,
                             onValueChange = {
-                                customerName = it
+                                viewModel.updateCustomerName(it)
                                 nameTouched = true
                             },
                             label = { Text("Customer Name *") },
@@ -292,9 +294,9 @@ fun CartScreen(
 
                         // Phone Number
                         OutlinedTextField(
-                            value = phone,
+                            value = orderState.phone,
                             onValueChange = {
-                                phone = it
+                                viewModel.updatePhone(it)
                                 phoneTouched = true
                             },
                             label = { Text("Phone Number *") },
@@ -317,11 +319,11 @@ fun CartScreen(
                         )
 
                         // Address — required only for Delivery
-                        if (orderType == "Delivery") {
+                        if (orderState.orderType == "Delivery") {
                             OutlinedTextField(
-                                value = address,
+                                value = orderState.address,
                                 onValueChange = {
-                                    address = it
+                                    viewModel.updateAddress(it)
                                     addressTouched = true
                                 },
                                 label = { Text("Delivery Address *") },
@@ -347,8 +349,8 @@ fun CartScreen(
 
                         // Special Instructions — optional
                         OutlinedTextField(
-                            value = instructions,
-                            onValueChange = { instructions = it },
+                            value = orderState.instructions,
+                            onValueChange = { viewModel.updateInstructions(it) },
                             label = { Text("Special Instructions") },
                             placeholder = { Text("Optional — e.g. extra spicy, no onions…") },
                             leadingIcon = {
@@ -396,6 +398,42 @@ fun CartScreen(
             }
         }
     }
+}
+
+
+fun initiatePayment(
+    context: Context,
+    name: String,
+    email: String = "",
+    contact: String,
+    amount: String,
+) {
+
+    try {
+        val checkout = Checkout()
+        checkout.setKeyID("rzp_test_ShBw7mlCM6gT6y") // ✅ dummy test key
+
+        val options = JSONObject().apply {
+            put("name", "FoodyVilla") // App name
+            put("description", "Online Order")
+            put("currency", "INR")
+            put("amount", amount) // ₹499.00 (amount in paise)
+            put("theme.color", "#E23744")
+
+            put("prefill", JSONObject().apply {
+                put("name", name)
+                put("email", email)
+                put("contact", contact)
+            })
+
+
+        }
+
+        checkout.open(context as Activity, options)
+    } catch (e: Exception) {
+        println("Payment Error $e")
+    }
+
 }
 
 @Composable

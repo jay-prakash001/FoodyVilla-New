@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +34,8 @@ import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Person3
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -97,8 +98,7 @@ fun MainScreen(
     )
     val title = titles[selectedPage]
     Scaffold(
-        containerColor = Color.Transparent,
-
+        containerColor = MaterialTheme.colorScheme.background, // Change from Transparent
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
@@ -147,19 +147,15 @@ fun MainScreen(
 //        },
         bottomBar = {
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Transparent),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+
+            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp) ){
                 ZomatoCartBar(
                     cartItemCount = homeState.cartItems.size,
                     totalPrice = homeState.cartItems.sumOf { it.totalPrice ?: 0.0 },
                     homeState.cartItems.mapNotNull {
                         it.products?.image?.firstOrNull()
-                    }) {
+                    }
+                ) {
                     navController.navigate(Screen.Cart)
                 }
                 FoodyVillaNavBar(
@@ -171,13 +167,15 @@ fun MainScreen(
                 )
             }
 
-        },
+
+        }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Transparent)
-                .padding(innerPadding)
+                .padding(top = innerPadding.calculateTopPadding()) ,
+      contentAlignment = Alignment.Center
         ) {
 
             // MenuWebViewScreen stays alive in the background — never recomposed away
@@ -204,6 +202,21 @@ fun MainScreen(
                 }, viewModel)
 
             }
+
+//            AnimatedVisibility(!homeState.cartItems.isNullOrEmpty()) {
+//                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter){
+//                    ZomatoCartBar(
+//                        cartItemCount = homeState.cartItems.size,
+//                        totalPrice = homeState.cartItems.sumOf { it.totalPrice ?: 0.0 },
+//                        homeState.cartItems.mapNotNull {
+//                            it.products?.image?.firstOrNull()
+//                        }
+//                    ) {
+//                        navController.navigate(Screen.Cart)
+//                    }
+//                }
+//
+//            }
         }
     }
 }
@@ -252,15 +265,16 @@ fun ZomatoCartBar(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth().background(Color.Transparent)
+                .fillMaxWidth(.9f)
+//                .background(Color.Transparent)
                 .padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
-//                    .fillMaxWidth()
+                    .fillMaxWidth()
                     .height(80.dp)
                     .clickable { onClick() },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFE23744) // Zomato red
             ) {
                 Row(
@@ -276,13 +290,13 @@ fun ZomatoCartBar(
                             .height(60.dp)
 
                     ) {
-                        items.take(5).forEachIndexed { index, imageUrl ->
+                        items.take(3).forEachIndexed { index, imageUrl ->
                             AsyncImage(
                                 model = imageUrl,
                                 contentDescription = null, contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(60.dp)
-                                    .offset(x = (-12 * index).dp)  // 👈 negative = overlap left
+                                    .offset(x = (-30 * index).dp)  // 👈 negative = overlap left
                                     .zIndex((5 - index).toFloat())  // 👈 first image on top
                                     .border(2.dp, Color(0xFFE23744), CircleShape)
                                     .clip(CircleShape)
@@ -298,16 +312,16 @@ fun ZomatoCartBar(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        LottieAnimation(
-                            composition = composition,
-                            progress = { progress },
-                            modifier = Modifier.size(28.dp)
-                        )
+//                        LottieAnimation(
+//                            composition = composition,
+//                            progress = { progress },
+//                            modifier = Modifier.size(28.dp)
+//                        )
                         Text(
                             text = "View Cart",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
+                            fontSize = 14.sp,
                             letterSpacing = 0.3.sp
                         )
                     }
