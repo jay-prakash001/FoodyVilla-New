@@ -80,6 +80,17 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
         }
     }
 
+
+    private val _logoutState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
+    val logoutState = _logoutState.asStateFlow()
+    fun logout() {
+        viewModelScope.launch {
+            authRepo.logout().collect { state ->
+                _logoutState.value = state
+            }
+        }
+    }
+
     fun login(otp: String? = null) {
         viewModelScope.launch {
             authRepo.loginWithOtp("+91${phoneNumber.value}", otp).collectLatest {

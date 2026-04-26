@@ -87,6 +87,10 @@ fun MainScreen(
     navController: NavController,
     viewModel: HomeViewModel = koinViewModel()
 ) {
+
+    LaunchedEffect(Unit) {
+        viewModel.getCartItems()
+    }
     val selectedPage = viewModel.selectedPage.collectAsStateWithLifecycle().value
     val homeState = viewModel.uiState.collectAsStateWithLifecycle().value
     val titles = listOf(
@@ -127,7 +131,7 @@ fun MainScreen(
 
                     IconButton(onClick = {
 
-                        navController.navigate(Screen.Cart)
+                        navController.navigate(Screen.Profile)
 
                     }) {
                         Icon(

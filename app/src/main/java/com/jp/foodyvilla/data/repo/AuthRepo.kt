@@ -35,7 +35,17 @@ class AuthRepo(
 ) {
 
     // client id : 936302589972-bjm4nnn6sie66eaqalfi0l6re6ja7fju.apps.googleusercontent.com
+    fun logout(): Flow<UiState<Unit>> = flow {
+        emit(UiState.Loading)
 
+        try {
+            supabase.auth.signOut()
+            supabase.auth.clearSession() // 👈 ensures local session removed
+            emit(UiState.Success(Unit))
+        } catch (e: Exception) {
+            emit(UiState.Error(e))
+        }
+    }
 
     @OptIn(ExperimentalTime::class, InternalAPI::class)
     fun loginWithOtp(
