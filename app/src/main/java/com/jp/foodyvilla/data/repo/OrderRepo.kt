@@ -1,10 +1,7 @@
 package com.jp.foodyvilla.data.repo
 
 import com.jp.foodyvilla.data.model.cart.CartItem
-import com.jp.foodyvilla.data.model.order.OrderInsert
-import com.jp.foodyvilla.data.model.order.OrderItem
-import com.jp.foodyvilla.data.model.order.OrderItemInsert
-import com.jp.foodyvilla.data.model.order.OrderModel
+import com.jp.foodyvilla.data.model.order.*
 import com.jp.foodyvilla.data.model.user.UserProfile
 import com.jp.foodyvilla.presentation.utils.UiState
 import io.github.jan.supabase.SupabaseClient
@@ -16,11 +13,7 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class OrderRepository(
@@ -50,7 +43,7 @@ class OrderRepository(
         lat: Double? = null,
         long: Double? = null,
         orderType: String? = null,
-        transactionId : String? =null
+        transactionId: String? = null
     ): Flow<UiState<String>> = flow {
 
         emit(UiState.Loading)
@@ -59,7 +52,6 @@ class OrderRepository(
             val customerId = getCustomerId()
                 ?: throw Exception("User not found")
 
-            // 1️⃣ Insert Order — typed class, no mapOf()
             val order = supabase.postgrest["orders"]
                 .insert(
                     OrderInsert(
@@ -74,10 +66,9 @@ class OrderRepository(
                         delivery_lat = lat,
                         delivery_long = long
                     )
-                ){select()}
+                ) { select() }
                 .decodeSingle<OrderModel>()
 
-            // 2️⃣ Insert Order Items — typed class, no mapOf()
             val orderItems = cartItems.map {
                 OrderItemInsert(
                     order_id = order.id,
@@ -91,11 +82,8 @@ class OrderRepository(
 
             supabase.postgrest["order_items"].insert(orderItems)
 
-            // 3️⃣ Clear Cart
             supabase.postgrest["cart"]
-                .delete {
-                    filter { eq("customer_id", customerId) }
-                }
+                .delete { filter { eq("customer_id", customerId) } }
 
             emit(UiState.Success(order.id))
 
@@ -104,24 +92,33 @@ class OrderRepository(
         }
     }
 
-    // ⚡ REALTIME ORDERS — updated for supabase-kt 3.x
+    // ===========================
+    // 🔥 REALTIME ORDERS (FIXED)
+    // ===========================
     fun observeOrders(): Flow<List<OrderModel>> = callbackFlow {
 
         val authId = supabase.auth.currentUserOrNull()?.id
-        if (authId == null) { trySend(emptyList()); close(); return@callbackFlow }
+        if (authId == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
 
         val user = supabase.postgrest["users"]
             .select { filter { eq("auth_user_id", authId) } }
             .decodeSingleOrNull<UserProfile>()
 
         val customerId = user?.id
-        if (customerId == null) { trySend(emptyList()); close(); return@callbackFlow }
+        if (customerId == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
 
-        // ✅ 3.x: use supabase.realtime.channel()
         val channel = supabase.realtime.channel("orders-channel")
 
-        // ✅ 3.x: postgresChangeFlow BEFORE subscribe()
-        channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+        // ✅ Attach listener BEFORE subscribe
+        val job = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "orders"
         }.onEach {
             val orders = supabase.postgrest["orders"]
@@ -130,27 +127,24 @@ class OrderRepository(
                     order("created_at", Order.DESCENDING)
                 }
                 .decodeList<OrderModel>()
+
             trySend(orders)
         }.launchIn(this)
 
-        // ✅ 3.x: subscribe AFTER setting up flows
         channel.subscribe()
 
-        // Initial load
+        // ✅ Initial load
         val initial = supabase.postgrest["orders"]
             .select {
                 filter { eq("customer_id", customerId) }
                 order("created_at", Order.DESCENDING)
             }
             .decodeList<OrderModel>()
-        initial.forEach {
 
-        observeOrderItems(it.id).collect { item->
-            println("Order Items $item")
-        }
-        }
         trySend(initial)
+
         awaitClose {
+            job.cancel()
             launch {
                 channel.unsubscribe()
                 supabase.realtime.removeChannel(channel)
@@ -158,29 +152,34 @@ class OrderRepository(
         }
     }
 
-    // ⚡ REALTIME ORDER ITEMS — updated for supabase-kt 3.x
+    // ===================================
+    // 🔥 REALTIME ORDER ITEMS (FIXED)
+    // ===================================
     fun observeOrderItems(orderId: String): Flow<List<OrderItem>> = callbackFlow {
 
         val channel = supabase.realtime.channel("order-items-$orderId")
 
-        channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+        val job = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
             table = "order_items"
         }.onEach {
             val items = supabase.postgrest["order_items"]
                 .select { filter { eq("order_id", orderId) } }
                 .decodeList<OrderItem>()
+
             trySend(items)
         }.launchIn(this)
 
         channel.subscribe()
 
-        // Initial load
+        // ✅ Initial load
         val initial = supabase.postgrest["order_items"]
             .select { filter { eq("order_id", orderId) } }
             .decodeList<OrderItem>()
+
         trySend(initial)
 
         awaitClose {
+            job.cancel()
             launch {
                 channel.unsubscribe()
                 supabase.realtime.removeChannel(channel)

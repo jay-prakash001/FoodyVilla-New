@@ -1,23 +1,51 @@
 package com.jp.foodyvilla.presentation.screens.menu
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.presentation.screens.home.CategoryChip
+import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.home.HorizontalFoodCard
 import org.koin.androidx.compose.koinViewModel
 
@@ -26,19 +54,56 @@ import org.koin.androidx.compose.koinViewModel
 fun MenuScreen(
     onItemClick: (Int) -> Unit,
     navController: NavController,
-    viewModel: MenuViewModel = koinViewModel(),
-//    cartViewModel: CartViewModel = koinViewModel()
+//    viewModel: MenuViewModel = koinViewModel(),
+    viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(),
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Full Menu", style = MaterialTheme.typography.headlineLarge) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-            )
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 2.dp)
+            ) {
+                OutlinedTextField(
+                    value = state.searchQuery,
+                    onValueChange = viewModel::onSearchQueryChange,
+                    placeholder = {
+                        Text(
+                            "Search dishes, cuisines...",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions {
+                        focusManager.clearFocus()
+                    }
+                )
+            }
         }
-    ) { padding ->
+    )
+    { padding ->
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -52,6 +117,8 @@ fun MenuScreen(
                 bottom = 100.dp
             )
         ) {
+
+
             item {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
@@ -70,7 +137,8 @@ fun MenuScreen(
             }
 
             item {
-                Card(onClick = { navController.navigate(Screen.OnLineMenu) },
+                Card(
+                    onClick = { navController.navigate(Screen.OnLineMenu) },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -125,9 +193,12 @@ fun MenuScreen(
             items(state.filteredItems, key = { it.id }) { item ->
                 HorizontalFoodCard(
                     item = item,
+                    isItemInCart  = (state.cartItems.orEmpty().filter { it.id == item.id }.size) >0,
+
                     onAddToCart = {
-//                        cartViewModel.addToCart(item)
-                                  },
+
+                        viewModel.updateCartItemQuantity(item)
+                    },
                     onClick = { onItemClick(item.id) },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )

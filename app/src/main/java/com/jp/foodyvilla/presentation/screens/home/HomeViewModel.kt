@@ -36,6 +36,34 @@ data class HomeUiState(
     val bestSellers: List<FoodItem>
         get() = allItems.filter { it.isBestSeller }
 
+
+    val filteredBestSellersItems: List<FoodItem>
+        get() {
+            val query = searchQuery.trim()
+
+            return allItems.filter { it.isBestSeller }.filter { item ->
+
+                val matchesSearch =
+                    query.isBlank() ||
+                            item.name.contains(query, true) ||
+                            item.description.contains(query, true) ||
+                            item.category.contains(query, true) ||
+                            item.prepTime.contains(query, true) ||
+                            item.price.toString().contains(query) ||
+                            item.rating.toString().contains(query) ||
+                            (query.equals("veg", true) && item.isVeg) ||
+                            (query.equals("vegan", true) && item.isVegan)
+
+                val matchesCategory =
+                    selectedCategory == "all" ||
+                            item.category.equals(selectedCategory, true) ||
+                            // 🔥 ALSO allow category match via search
+                            item.name.contains(selectedCategory, true) ||
+                            item.description.contains(selectedCategory, true)
+
+                matchesSearch && matchesCategory
+            }
+        }
     val filteredItems: List<FoodItem>
         get() {
             val query = searchQuery.trim()

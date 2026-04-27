@@ -12,6 +12,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,7 +42,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -56,7 +56,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -119,6 +118,8 @@ fun HomeScreen(
     RequestNotificationPermission {
         isNotificationPermissionEnabled = it
     }
+
+
 
 
     Scaffold(
@@ -288,7 +289,7 @@ fun HomeScreen(
             }
 
             // ───────── Top Selling
-            if (state.bestSellers.isNotEmpty() && state.searchQuery.isBlank()) {
+            if (state.filteredBestSellersItems.isNotEmpty() && state.searchQuery.isBlank()) {
                 item {
                     Row(
                         modifier = Modifier
@@ -299,27 +300,46 @@ fun HomeScreen(
                     ) {
                         Text("Top Selling 🔥", style = MaterialTheme.typography.headlineLarge)
 
-                        TextButton(onClick = {}) {
-                            Text(
-                                "See All",
-                                color = colors.primary
-                            )
-                        }
+
                     }
                 }
 
 
-                items(state.bestSellers) { item ->
-                    FoodCard(
-                        item = item,
-                        onAddToCart = {
-                            viewModel.updateCartItemQuantity(item)
-                        },
-                        homeViewModel = viewModel,
-                        onClick = { onItemClick(item.id) },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
-                    )
+                val chunkedList = state.filteredBestSellersItems.chunked(2)
+
+                items(chunkedList) { rowItems ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(4.dp)
+                    ) {
+                        rowItems.forEach { item ->
+                            FoodCard(
+                                item = item,
+                                onAddToCart = {  viewModel.updateCartItemQuantity(item) },
+                                onClick = { onItemClick(item.id)},
+                                homeViewModel = viewModel,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // If odd number of items → fill empty space
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
+
+//                items(state.bestSellers) { item ->
+//                    FoodCard(
+//                        item = item,
+//                        onAddToCart = {
+//                            viewModel.updateCartItemQuantity(item)
+//                        },
+//                        homeViewModel = viewModel,
+//                        onClick = { onItemClick(item.id) },
+//                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+//                    )
+//                }
             }
 
 
@@ -335,6 +355,8 @@ fun HomeScreen(
             val displayItems =
                 if (state.searchQuery.isNotBlank() || state.selectedCategory != "all")
                     state.filteredItems else state.popularItems
+
+
 
             if (displayItems.isEmpty()) {
                 item {
@@ -356,7 +378,7 @@ fun HomeScreen(
                         item = item,
                         onAddToCart = { /* TODO */ },
                         onClick = { onItemClick(item.id) },
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 5.dp),
                     )
                 }
             }
@@ -613,7 +635,8 @@ fun HorizontalFoodCard(
     item: FoodItem,
     onAddToCart: () -> Unit,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isItemInCart: Boolean = false
 ) {
     val imageUrl = if (item.image.isNotEmpty()) {
         item.image[0]
@@ -684,19 +707,22 @@ fun HorizontalFoodCard(
                     "₹${item.price}",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
-                FilledIconButton(
-                    onClick = onAddToCart,
+                AnimatedVisibility(!isItemInCart) {
+                    FilledIconButton(
+                        onClick = onAddToCart,
 //                    containerColor = PrimaryRed,
-                    shape = CircleShape,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Add",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
+                        shape = CircleShape,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Add",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
+
             }
         }
     }

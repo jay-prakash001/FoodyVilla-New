@@ -16,11 +16,36 @@ data class MenuUiState(
     val isLoading: Boolean = true,
     val allItems: List<FoodItem> = emptyList(),
     val categories: List<Category> = emptyList(),
-    val selectedCategory: String = ""
+    val selectedCategory: String = "",
+    val searchQuery : String = ""
 ) {
     val filteredItems: List<FoodItem>
-        get() = if (selectedCategory == "") allItems
-        else allItems.filter { it.category.contains( selectedCategory,true) }
+        get() {
+            val query = searchQuery.trim()
+
+            return allItems.filter { item ->
+
+                val matchesSearch =
+                    query.isBlank() ||
+                            item.name.contains(query, true) ||
+                            item.description.contains(query, true) ||
+                            item.category.contains(query, true) ||
+                            item.prepTime.contains(query, true) ||
+                            item.price.toString().contains(query) ||
+                            item.rating.toString().contains(query) ||
+                            (query.equals("veg", true) && item.isVeg) ||
+                            (query.equals("vegan", true) && item.isVegan)
+
+                val matchesCategory =
+                    selectedCategory == "all" ||
+                            item.category.equals(selectedCategory, true) ||
+                            // 🔥 ALSO allow category match via search
+                            item.name.contains(selectedCategory, true) ||
+                            item.description.contains(selectedCategory, true)
+
+                matchesSearch && matchesCategory
+            }
+        }
 }
 
 class MenuViewModel(private val foodRepository: ProductRepo) : ViewModel() {
@@ -38,5 +63,8 @@ class MenuViewModel(private val foodRepository: ProductRepo) : ViewModel() {
         }
     }
 
+    fun onSearchQueryChange(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
     fun selectCategory(name: String) = _uiState.update { it.copy(selectedCategory = if(name.contains("all",true)){""}else name) }
 }

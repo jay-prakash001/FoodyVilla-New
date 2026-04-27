@@ -193,6 +193,7 @@ fun MainScreen(
 
                 1 -> MenuScreen(
                     navController = navController,
+                    viewModel = viewModel,
                     onItemClick = { navController.navigate(Screen.Detail(it)) })
 //                1-> OrderOnlineScreen({ selectedPage = 0})
                 2 -> OffersScreen()
