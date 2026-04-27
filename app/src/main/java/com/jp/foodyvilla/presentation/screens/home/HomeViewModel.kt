@@ -346,15 +346,54 @@ class HomeViewModel(
 ////            )
 //        }
     }
-
     fun updateCartItemQuantity(item: FoodItem, quantity: Int = 1) {
+
+        if (quantity == 0) {
+            _uiState.update { state ->
+                state.copy(
+                    cartItems = state.cartItems.filter { it.product_id != item.id }
+                )
+            }
+        } else {
+            _uiState.update { state ->
+
+                val exists = state.cartItems.any { it.product_id == item.id }
+
+                val updatedList = if (exists) {
+                    state.cartItems.map {
+                        if (it.product_id == item.id) {
+                            it.copy(qty = quantity) // ✅ update in place
+                        } else it
+                    }
+                } else {
+                    state.cartItems + CartItem(
+                        id = item.id,
+                        products = item,
+                        qty = quantity,
+                        customer_id = 0,
+                        product_id = item.id
+                    )
+                }
+
+                state.copy(cartItems = updatedList)
+            }
+        }
+
+        viewModelScope.launch {
+            cartRepository.addToCart(item.id, quantity).collectLatest {
+                println("update cart $it")
+            }
+        }
+    }
+
+    fun updateCartItemQuantity0(item: FoodItem, quantity: Int = 1) {
         if (quantity == 0) {
             _uiState.update { it ->
-                it.copy(cartItems = it.cartItems.filter { it.products?.id != item.id })
+                it.copy(cartItems = it.cartItems.filter { it.product_id != item.id })
             }
         } else {
             _uiState.update {
-                it.copy(cartItems = it.cartItems.filter { it.products?.id != item.id } + CartItem(
+                it.copy(cartItems = it.cartItems.filter { it.product_id != item.id } + CartItem(
                     id = item.id,
                     products = item,
                     qty = quantity,

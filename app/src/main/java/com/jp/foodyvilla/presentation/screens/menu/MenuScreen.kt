@@ -193,8 +193,7 @@ fun MenuScreen(
             items(state.filteredItems, key = { it.id }) { item ->
                 HorizontalFoodCard(
                     item = item,
-                    isItemInCart  = (state.cartItems.orEmpty().filter { it.id == item.id }.size) >0,
-
+                    isItemInCart = state.cartItems.orEmpty().any { it.product_id == item.id },
                     onAddToCart = {
 
                         viewModel.updateCartItemQuantity(item)

@@ -189,7 +189,9 @@ fun MainScreen(
             when (selectedPage) {
                 0 -> HomeScreen({ itemId ->
                     navController.navigate(Screen.Detail(itemId))
-                }, viewModel)
+                }, viewModel = viewModel, onMenuClick = {
+                    viewModel.updateSelectedPage(1)
+                })
 
                 1 -> MenuScreen(
                     navController = navController,
@@ -204,7 +206,9 @@ fun MainScreen(
                 4 -> ContactUsScreen()
                 else -> HomeScreen({ itemId ->
                     navController.navigate(Screen.Detail(itemId))
-                }, viewModel)
+                }, viewModel = viewModel, onMenuClick = {
+                    viewModel.updateSelectedPage(1)
+                })
 
             }
 

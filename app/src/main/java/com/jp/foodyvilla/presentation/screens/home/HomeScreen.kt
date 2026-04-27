@@ -86,6 +86,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(
     onItemClick: (Int) -> Unit,
+    onMenuClick : ()->Unit = {},
     viewModel: HomeViewModel,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -166,7 +167,10 @@ fun HomeScreen(
 
                         OutlinedTextField(
                             value = state.searchQuery,
-                            onValueChange = viewModel::onSearchQueryChange,
+                            onValueChange = {
+                                viewModel.onSearchQueryChange(it)
+                                onMenuClick()
+                            },
                             placeholder = {
                                 Text(
                                     "Search dishes, cuisines...",
@@ -180,7 +184,10 @@ fun HomeScreen(
                                     tint = colors.onSurfaceVariant
                                 )
                             },
-                            modifier = Modifier.fillMaxWidth(),
+//                            enabled = false,
+                            modifier = Modifier.fillMaxWidth().clickable{
+                                onMenuClick()
+                            },
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
