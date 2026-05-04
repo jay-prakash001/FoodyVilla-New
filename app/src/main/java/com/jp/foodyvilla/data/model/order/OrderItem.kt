@@ -1,5 +1,6 @@
 package com.jp.foodyvilla.data.model.order
 
+import com.jp.foodyvilla.data.model.FoodItem
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -10,5 +11,6 @@ data class OrderItem(
     val qty: Int,
     val price_per_item: Double,
     val total_price: Double,
-    val total_discount: Double? = 0.0
+    val total_discount: Double? = 0.0,
+    val products: FoodItem? = null
 )

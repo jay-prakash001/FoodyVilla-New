@@ -1,86 +1,88 @@
 package com.jp.foodyvilla.presentation.screens.account
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.location.LocationManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Phone
-import androidx.compose.material.icons.outlined.Tag
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.jp.foodyvilla.data.model.user.UserProfile
 import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
 import com.jp.foodyvilla.presentation.utils.UiState
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
-// ─── Data model matching your API response ────────────────────────────────────
+// ─── Permission & Location Helpers ───────────────────────────────────────────
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+private fun Context.hasLocationPermission(): Boolean {
+    return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PermissionChecker.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PermissionChecker.PERMISSION_GRANTED
+}
+
+private fun Context.isGpsEnabled(): Boolean {
+    val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+}
+
+private suspend fun fetchLocation(
+    context: Context,
+    onSuccess: (Double, Double) -> Unit,
+    onFailure: (String) -> Unit
+) {
+    try {
+        val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+        val result = fusedClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            CancellationTokenSource().token
+        ).await()
+
+        if (result != null) {
+            onSuccess(result.latitude, result.longitude)
+        } else {
+            onFailure("Location fix unavailable. Try again.")
+        }
+    } catch (e: SecurityException) {
+        onFailure("Permission denied.")
+    } catch (e: Exception) {
+        onFailure("Error: ${e.localizedMessage}")
+    }
+}
+
+// ─── Main Screen Entry ───────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -89,568 +91,305 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
+    val userState by viewModel.user.collectAsStateWithLifecycle()
+
     LaunchedEffect(Unit) {
         viewModel.getUserProfile()
     }
-    val userState = viewModel.user.collectAsStateWithLifecycle().value
-
 
     when (userState) {
         is UiState.Success -> {
-
-            val userProfile = userState.data
-            var name by remember { mutableStateOf(userProfile.name ?: "") }
-            var email by remember { mutableStateOf(userProfile.email ?: "") }
-            var phone by remember { mutableStateOf(userProfile.phone) }
-            var address by remember { mutableStateOf(userProfile.address ?: "") }
-
-            // UI state
-            var showLogoutDialog by remember { mutableStateOf(false) }
-            var isSaving by remember { mutableStateOf(false) }
-            var saveSuccess by remember { mutableStateOf(false) }
-            val snackbarHostState = remember { SnackbarHostState() }
-            val scrollState = rememberScrollState()
-
-            // FoodyVilla brand colors
-            val brandOrange = MaterialTheme.colorScheme.primary
-            val brandOrangeDark = MaterialTheme.colorScheme.primary
-            val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-
-            Scaffold(
-                snackbarHost = { SnackbarHost(snackbarHostState) },
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = "My Profile",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onNavigateBack) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowBack,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        },
-                        actions = {
-                            // Logout icon in top bar
-                            IconButton(onClick = { showLogoutDialog = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.ExitToApp,
-                                    contentDescription = "Logout",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    )
-                },
-                bottomBar = {
-                    Surface(
-                        shadowElevation = 8.dp,
-                        color = MaterialTheme.colorScheme.surface
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .navigationBarsPadding()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Save Changes Button
-                            Button(
-                                onClick = {
-                                    isSaving = true
-                                    val updated = userProfile.copy(
-                                        name = name.trim().ifEmpty { null },
-                                        email = email.trim().ifEmpty { null },
-                                        phone = phone?.trim(),
-                                        address = address.trim().ifEmpty { null }
-                                    )
-                                    onSaveChanges(updated)
-                                    isSaving = false
-                                    saveSuccess = true
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(52.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = brandOrange
-                                ),
-                                enabled = !isSaving
-                            ) {
-                                if (isSaving) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Save Changes",
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 16.sp
-                                    )
-                                }
-                            }
-
-                            // Logout Button
-                            OutlinedButton(
-                                onClick = { showLogoutDialog = true },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(52.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                ),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    // tint border to error color
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ExitToApp,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Log Out",
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 16.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            ) { paddingValues ->
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // ── Avatar + Verification Badge ─────────────────────────────────
-                    Box(
-                        contentAlignment = Alignment.BottomEnd,
-                        modifier = Modifier.size(100.dp)
-                    ) {
-                        // Avatar Circle with gradient background
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        colors = listOf(brandOrange, brandOrangeDark)
-                                    )
-                                )
-                                .border(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shape = CircleShape
-                                )
-                        ) {
-                            Text(
-                                text = if (name.isNotBlank()) name.first().uppercase() else "U",
-                                fontSize = 40.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-
-                        // Edit camera icon
-                        Surface(
-                            modifier = Modifier.size(30.dp),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 4.dp
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PhotoCamera,
-                                contentDescription = "Change photo",
-                                modifier = Modifier.padding(5.dp),
-                                tint = brandOrange
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Name display (or placeholder)
-                    Text(
-                        text = if (name.isNotBlank()) name else "FoodyVilla User",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Verification chip
-                    if (userProfile.is_verified) {
-                        AssistChip(
-                            onClick = {},
-                            label = { Text("Verified", fontSize = 12.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Verified,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = Color(0xFF4CAF50).copy(alpha = 0.12f),
-                                labelColor = Color(0xFF2E7D32),
-                                leadingIconContentColor = Color(0xFF2E7D32)
-                            )
-                        )
-                    } else {
-                        AssistChip(
-                            onClick = {},
-                            label = { Text("Not Verified", fontSize = 12.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                labelColor = MaterialTheme.colorScheme.error,
-                                leadingIconContentColor = MaterialTheme.colorScheme.error
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // ── Form Card ────────────────────────────────────────────────────
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "Personal Information",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = brandOrange
-                            )
-
-                            ProfileTextField(
-                                value = name,
-                                onValueChange = { name = it },
-                                label = "Full Name",
-                                placeholder = "Enter your name",
-                                leadingIcon = Icons.Outlined.Person,
-                                keyboardType = KeyboardType.Text
-                            )
-
-                            ProfileTextField(
-                                value = email,
-                                onValueChange = { email = it },
-                                label = "Email Address",
-                                placeholder = "Enter your email",
-                                leadingIcon = Icons.Outlined.Email,
-                                keyboardType = KeyboardType.Email
-                            )
-
-                            ProfileTextField(
-                                value = phone ?: "",
-                                onValueChange = { phone = it },
-                                label = "Phone Number",
-                                placeholder = "Enter phone number",
-                                leadingIcon = Icons.Outlined.Phone,
-                                keyboardType = KeyboardType.Phone
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // ── Address Card ─────────────────────────────────────────────────
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "Delivery Address",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = brandOrange
-                            )
-
-                            OutlinedTextField(
-                                value = address,
-                                onValueChange = { address = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Address") },
-                                placeholder = { Text("Enter your delivery address") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.LocationOn,
-                                        contentDescription = null,
-                                        tint = brandOrange
-                                    )
-                                },
-                                minLines = 3,
-                                maxLines = 4,
-                                shape = RoundedCornerShape(12.dp),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = brandOrange,
-                                    focusedLabelColor = brandOrange,
-                                    cursorColor = brandOrange
-                                )
-                            )
-
-                            // Show lat/long if available
-                            if (userProfile.lat != null && userProfile.long != null) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.MyLocation,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.outline,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "GPS: ${userProfile.lat}, ${userProfile.long}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.outline
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // ── Account Info Card (read-only) ────────────────────────────────
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "Account Details",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = brandOrange
-                            )
-
-                            InfoRow(
-                                icon = Icons.Outlined.Tag,
-                                label = "User ID",
-                                value = "#${userProfile.id}"
-                            )
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                            InfoRow(
-                                icon = Icons.Outlined.Key,
-                                label = "Auth ID",
-                                value = userProfile.auth_user_id.take(8) + "…"
-                            )
-                        }
-                    }
-
-                    // Bottom padding so content isn't hidden behind bottom bar
-                    Spacer(modifier = Modifier.height(160.dp))
-                }
-            }
-
-            // ── Logout Confirmation Dialog ────────────────────────────────────────────
-            if (showLogoutDialog) {
-                AlertDialog(
-                    onDismissRequest = { showLogoutDialog = false },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    title = {
-                        Text(
-                            text = "Log Out?",
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    text = {
-                        Text(
-                            text = "Are you sure you want to log out of FoodyVilla?",
-                            textAlign = TextAlign.Center
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                showLogoutDialog = false
-                                onLogout()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Log Out", fontWeight = FontWeight.SemiBold)
-                        }
-                    },
-                    dismissButton = {
-                        OutlinedButton(
-                            onClick = { showLogoutDialog = false },
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Cancel")
-                        }
-                    },
-                    shape = RoundedCornerShape(20.dp)
-                )
+            ProfileContent(
+                userProfile = (userState as UiState.Success<UserProfile>).data,
+                onSaveChanges = onSaveChanges,
+                onLogout = onLogout,
+                onNavigateBack = onNavigateBack
+            )
+        }
+        is UiState.Loading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
-
-        else -> {}
+        else -> Unit
     }
-    // Editable state
-
 }
 
-// ─── Reusable Components ──────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileContent(
+    userProfile: UserProfile,
+    onSaveChanges: (UserProfile) -> Unit,
+    onLogout: () -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Form State
+    var name by remember { mutableStateOf(userProfile.name ?: "") }
+    var email by remember { mutableStateOf(userProfile.email ?: "") }
+    var phone by remember { mutableStateOf(userProfile.phone ?: "") }
+    var address by remember { mutableStateOf(userProfile.address ?: "") }
+    var lat by remember { mutableStateOf(userProfile.lat) }
+    var lon by remember { mutableStateOf(userProfile.long) }
+
+    // UI Feedback State
+    var isSaving by remember { mutableStateOf(false) }
+    var isFetchingLocation by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showGpsDialog by remember { mutableStateOf(false) }
+
+    val saveScale by animateFloatAsState(if (isSaving) 0.96f else 1f, label = "save_anim")
+
+    // Permission Launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.any { it }
+        if (granted) {
+            if (context.isGpsEnabled()) {
+                isFetchingLocation = true
+                scope.launch {
+                    fetchLocation(context, { lt, ln ->
+                        lat = lt; lon = ln; isFetchingLocation = false
+                    }, { msg ->
+                        isFetchingLocation = false
+                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                    })
+                }
+            } else {
+                showGpsDialog = true
+            }
+        } else {
+            scope.launch { snackbarHostState.showSnackbar("Location permission required.") }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("My Profile", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, null)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showLogoutDialog = true }) {
+                        Icon(Icons.Rounded.Logout, null, tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            Surface(tonalElevation = 3.dp, shadowElevation = 10.dp) {
+                Button(
+                    onClick = {
+                        isSaving = true
+                        onSaveChanges(userProfile.copy(name=name, email=email, phone=phone, address=address, lat=lat, long=lon))
+                        isSaving = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .height(56.dp)
+                        .graphicsLayer { scaleX = saveScale; scaleY = saveScale },
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    if (isSaving) CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    else Text("Save Changes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding).imePadding()
+                .verticalScroll(scrollState)
+        ) {
+            // Header / Hero Section
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+                        )
+                    )
+                    .padding(vertical = 40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(3.dp, MaterialTheme.colorScheme.onPrimary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = name.take(1).uppercase().ifEmpty { "?" },
+                            style = MaterialTheme.typography.displaySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = name.ifEmpty { "Welcome!" },
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Information Groups
+            ProfileGroup(title = "Account Information", icon = Icons.Rounded.AccountCircle) {
+                ProfileField(value = name, onValueChange = { name = it }, label = "Full Name", icon = Icons.Rounded.Person)
+                ProfileField(value = email, onValueChange = { email = it }, label = "Email Address", icon = Icons.Rounded.Email, type = KeyboardType.Email)
+                ProfileField(value = phone, onValueChange = { phone = it }, label = "Phone", icon = Icons.Rounded.Phone, type = KeyboardType.Phone)
+            }
+
+            ProfileGroup(title = "Delivery Details", icon = Icons.Rounded.Map) {
+                ProfileField(value = address, onValueChange = { address = it }, label = "Full Address", icon = Icons.Rounded.Home, singleLine = false)
+
+                FilledTonalButton(
+                    onClick = {
+                        if (context.hasLocationPermission()) {
+                            if (context.isGpsEnabled()) {
+                                isFetchingLocation = true
+                                scope.launch {
+                                    fetchLocation(context, { lt, ln ->
+                                        lat = lt; lon = ln; isFetchingLocation = false
+                                    }, { msg ->
+                                        isFetchingLocation = false
+                                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                                    })
+                                }
+                            } else {
+                                showGpsDialog = true
+                            }
+                        } else {
+                            permissionLauncher.launch(
+                                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    if (isFetchingLocation) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Rounded.MyLocation, null, Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Detect Current Location")
+                    }
+                }
+
+                if (lat != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.PinDrop, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "GPS: ${"%.4f".format(lat)}, ${"%.4f".format(lon)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    // Dialogs
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            confirmButton = {
+                Button(onClick = onLogout, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                    Text("Logout")
+                }
+            },
+            dismissButton = { TextButton(onClick = { showLogoutDialog = false }) { Text("Cancel") } },
+            title = { Text("Confirm Logout") },
+            text = { Text("Are you sure you want to sign out of your account?") },
+            icon = { Icon(Icons.Rounded.Warning, null) }
+        )
+    }
+
+    if (showGpsDialog) {
+        AlertDialog(
+            onDismissRequest = { showGpsDialog = false },
+            confirmButton = {
+                Button(onClick = {
+                    showGpsDialog = false
+                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                }) { Text("Open Settings") }
+            },
+            title = { Text("GPS Disabled") },
+            text = { Text("Please turn on your device location to auto-detect your address.") }
+        )
+    }
+}
 
 @Composable
-private fun ProfileTextField(
+private fun ProfileGroup(title: String, icon: ImageVector, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.height(12.dp))
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+        }
+    }
+}
+
+@Composable
+private fun ProfileField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    placeholder: String,
-    leadingIcon: ImageVector,
-    keyboardType: KeyboardType
+    icon: ImageVector,
+    type: KeyboardType = KeyboardType.Text,
+    singleLine: Boolean = true
 ) {
-    val brandOrange = Color(0xFFFF6B35)
-
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth(),
         label = { Text(label) },
-        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.outline) },
-        leadingIcon = {
-            Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                tint = brandOrange
-            )
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(12.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        leadingIcon = { Icon(icon, null, tint = MaterialTheme.colorScheme.outline) },
+        keyboardOptions = KeyboardOptions(keyboardType = type),
+        singleLine = singleLine,
+        shape = MaterialTheme.shapes.small,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = brandOrange,
-            focusedLabelColor = brandOrange,
-            cursorColor = brandOrange
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            focusedLabelColor = MaterialTheme.colorScheme.primary
         )
     )
 }
-
-@Composable
-private fun InfoRow(
-    icon: ImageVector,
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(18.dp)
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-// ─── Preview ──────────────────────────────────────────────────────────────────
-// Uncomment to use in Android Studio Preview
-/*
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ProfileScreenPreview() {
-    FoodyVillaTheme {
-        ProfileScreen(
-            userProfile = UserProfile(
-                id = 8,
-                authUserId = "291380ef-5573-4e6d-ac4b-d46233ebaf5c",
-                name = null,
-                email = null,
-                phone = "+916264974771",
-                address = null,
-                lat = null,
-                long = null,
-                isVerified = false
-            ),
-            onSaveChanges = {},
-            onLogout = {},
-            onNavigateBack = {}
-        )
-    }
-}
-*/

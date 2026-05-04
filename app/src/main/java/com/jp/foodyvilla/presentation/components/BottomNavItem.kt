@@ -40,7 +40,7 @@ private val navItems = listOf(
     BottomNavItem("Menu", Icons.Filled.Menu),
     BottomNavItem("Offers", Icons.Outlined.LocalOffer),
     BottomNavItem("Review", Icons.Filled.Reviews),
-    BottomNavItem("Support", Icons.Filled.SupportAgent),
+    BottomNavItem("Orders", Icons.Filled.ShoppingBag),
 )
 
 // ─────────────────────────────────────────────────────────────

@@ -17,7 +17,8 @@ data class OrderModel(
     val delivery_lat: Double? = null,
     val delivery_long: Double? = null,
     val order_type: String? = null,
-    val transaction_id: String?  = null
+    val transaction_id: String?  = null,
+    val order_items : List<OrderItem> = emptyList()
 )
 
 // ───── Insert Models (separate from response models) ─────

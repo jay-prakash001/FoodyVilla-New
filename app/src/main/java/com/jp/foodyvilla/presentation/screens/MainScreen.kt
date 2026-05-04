@@ -33,9 +33,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Person3
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -72,11 +71,11 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.jp.foodyvilla.R
 import com.jp.foodyvilla.presentation.components.FoodyVillaNavBar
 import com.jp.foodyvilla.presentation.navigation.Screen
-import com.jp.foodyvilla.presentation.screens.contactUs.ContactUsScreen
 import com.jp.foodyvilla.presentation.screens.home.HomeScreen
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
+import com.jp.foodyvilla.presentation.screens.orders.OrderHistoryScreen
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
 import org.koin.androidx.compose.koinViewModel
 
@@ -115,7 +114,17 @@ fun MainScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(MaterialTheme.colorScheme.primaryContainer),
                 actions = {
+                    IconButton(onClick = {
 
+                        navController.navigate(Screen.CustomerSupport)
+
+                    }) {
+                        Icon(
+                            Icons.Default.SupportAgent,
+                            contentDescription = "customer support",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                     IconButton(onClick = {
 
                         navController.navigate(Screen.Cart)
@@ -197,13 +206,13 @@ fun MainScreen(
                     navController = navController,
                     viewModel = viewModel,
                     onItemClick = { navController.navigate(Screen.Detail(it)) })
-//                1-> OrderOnlineScreen({ selectedPage = 0})
+
                 2 -> OffersScreen()
                 3 -> ReviewsScreen() {
                     navController.navigate(Screen.AddReviews)
                 }
 
-                4 -> ContactUsScreen()
+                4 -> OrderHistoryScreen(viewModel = viewModel )
                 else -> HomeScreen({ itemId ->
                     navController.navigate(Screen.Detail(itemId))
                 }, viewModel = viewModel, onMenuClick = {
@@ -212,30 +221,13 @@ fun MainScreen(
 
             }
 
-//            AnimatedVisibility(!homeState.cartItems.isNullOrEmpty()) {
-//                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter){
-//                    ZomatoCartBar(
-//                        cartItemCount = homeState.cartItems.size,
-//                        totalPrice = homeState.cartItems.sumOf { it.totalPrice ?: 0.0 },
-//                        homeState.cartItems.mapNotNull {
-//                            it.products?.image?.firstOrNull()
-//                        }
-//                    ) {
-//                        navController.navigate(Screen.Cart)
-//                    }
-//                }
-//
-//            }
+
         }
     }
 }
 
 
-// 1. Add to build.gradle (app)
-// implementation "com.airbnb.android:lottie-compose:6.4.0"
 
-// 2. Add a cart Lottie JSON to res/raw/cart_animation.json
-// Free source: https://lottiefiles.com/search?q=shopping+cart
 
 
 @Composable

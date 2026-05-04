@@ -43,7 +43,7 @@ sealed interface Screen {
     data object AddReviews : Screen
 
     @Serializable
-    data object Contact : Screen
+    data object CustomerSupport : Screen
 
     @Serializable
     data object Login : Screen

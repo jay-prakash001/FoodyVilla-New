@@ -152,7 +152,6 @@ class AuthRepo(
         } catch (e: Exception) {
             return false
         }
-        return false
     }
 
 

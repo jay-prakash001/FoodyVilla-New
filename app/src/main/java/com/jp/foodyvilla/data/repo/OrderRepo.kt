@@ -15,6 +15,7 @@ import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import io.github.jan.supabase.postgrest.query.Columns
 
 class OrderRepository(
     private val supabase: SupabaseClient
@@ -95,11 +96,11 @@ class OrderRepository(
     // ===========================
     // 🔥 REALTIME ORDERS (FIXED)
     // ===========================
-    fun observeOrders(): Flow<List<OrderModel>> = callbackFlow {
+    fun observeOrders(): Flow<UiState<List<OrderModel>>> = callbackFlow {
 
         val authId = supabase.auth.currentUserOrNull()?.id
         if (authId == null) {
-            trySend(emptyList())
+            trySend(UiState.Error())
             close()
             return@callbackFlow
         }
@@ -110,7 +111,7 @@ class OrderRepository(
 
         val customerId = user?.id
         if (customerId == null) {
-            trySend(emptyList())
+            trySend(UiState.Error())
             close()
             return@callbackFlow
         }
@@ -128,20 +129,25 @@ class OrderRepository(
                 }
                 .decodeList<OrderModel>()
 
-            trySend(orders)
+            trySend(UiState.Success(orders))
         }.launchIn(this)
 
         channel.subscribe()
 
         // ✅ Initial load
+
         val initial = supabase.postgrest["orders"]
-            .select {
+            .select(
+                Columns.raw(
+                    "*, order_items(*, products(name, image))"
+                )
+            ) {
                 filter { eq("customer_id", customerId) }
                 order("created_at", Order.DESCENDING)
             }
             .decodeList<OrderModel>()
 
-        trySend(initial)
+        trySend(UiState.Success(initial))
 
         awaitClose {
             job.cancel()

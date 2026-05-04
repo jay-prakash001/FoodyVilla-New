@@ -8,6 +8,7 @@ import com.jp.foodyvilla.data.model.Category
 import com.jp.foodyvilla.data.model.FoodItem
 import com.jp.foodyvilla.data.model.MockData
 import com.jp.foodyvilla.data.model.cart.CartItem
+import com.jp.foodyvilla.data.model.order.OrderModel
 import com.jp.foodyvilla.data.repo.CartRepository
 import com.jp.foodyvilla.data.repo.LocationRepository
 import com.jp.foodyvilla.data.repo.OfferRepo
@@ -163,11 +164,14 @@ class HomeViewModel(
 
     }
 
+
+    private val _orderHistoryState  = MutableStateFlow<UiState<List<OrderModel>>>(UiState.Idle)
+    val orderHistoryState = _orderHistoryState.asStateFlow()
     fun getOrderedItems() {
         viewModelScope.launch {
             orderRepository.observeOrders().collectLatest {
                 println("orders : $it")
-
+                _orderHistoryState.value = it
             }
 
         }

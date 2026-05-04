@@ -12,6 +12,7 @@ import androidx.navigation.toRoute
 import com.jp.foodyvilla.presentation.screens.MainScreen
 import com.jp.foodyvilla.presentation.screens.account.ProfileScreen
 import com.jp.foodyvilla.presentation.screens.cart.CartScreen
+import com.jp.foodyvilla.presentation.screens.contactUs.ContactUsScreen
 import com.jp.foodyvilla.presentation.screens.detail.DetailScreen
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
@@ -114,6 +115,13 @@ fun FoodyVillaNavGraph() {
             )
         }
 
+
+
+        composable<Screen.CustomerSupport> {
+            ContactUsScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
         composable<Screen.AddReviews> {
             AddReviewScreen(
                 viewModel = koinViewModel(),
