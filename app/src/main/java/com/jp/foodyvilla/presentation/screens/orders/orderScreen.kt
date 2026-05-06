@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +40,12 @@ fun OrderHistoryScreen(
 
     val orderState  = viewModel.orderHistoryState.collectAsStateWithLifecycle().value
 
+
+    LaunchedEffect(Unit) {
+        if(orderState is UiState.Error){
+            viewModel.getOrderedItems()
+        }
+    }
     when(orderState){
         is UiState.Error -> {}
 

@@ -5,15 +5,18 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.messaging.FirebaseMessaging
 import com.jp.foodyvilla.data.model.user.UserProfile
 import com.jp.foodyvilla.data.repo.AuthRepo
+import com.jp.foodyvilla.data.repo.LocationRepository
 import com.jp.foodyvilla.data.repo.UserRepository
 import com.jp.foodyvilla.presentation.utils.UiState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class LoginViewModel(private val authRepo: AuthRepo, private val userRepository: UserRepository) :
+class LoginViewModel(private val authRepo: AuthRepo, private val userRepository: UserRepository, private val locationRepository: LocationRepository) :
     ViewModel() {
 
 
@@ -50,7 +53,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
     val isLoggedIn = _isLoggedIn.asStateFlow()
 
     init {
-        println("Login status : ${authRepo.isLoggedIn()}")
         isLoggedIn()
         viewModelScope.launch {
             userRepository.getCurrentUserProfile().collectLatest {
@@ -64,7 +66,9 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
 
     private fun isLoggedIn() {
         viewModelScope.launch {
+
             _isLoggedIn.value = authRepo.isLoggedIn()
+            println("Login status : ${authRepo.isLoggedIn()}    ${_isLoggedIn.value}")
         }
     }
 
@@ -127,7 +131,14 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
                 userRepository.getCurrentUserProfile().collectLatest {
 
 
-                    _userState.value = it
+                   if(_userState.value is UiState.Success){
+                       if(it is UiState.Success){
+                           _userState.value = it
+                       }
+                   }else{
+                       _userState.value = it
+
+                   }
 
                 }
             } catch (e: Exception) {
@@ -142,6 +153,95 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
                 println("Login Res $it")
             }
         }
+    }
+
+
+    private val _locationState =
+        MutableStateFlow<UiState<Pair<Double, Double>>>(UiState.Idle)
+
+    val locationState = _locationState.asStateFlow()
+
+    fun hasLocationPermission(): Boolean {
+        return locationRepository.hasLocationPermission()
+    }
+
+    fun isGpsEnabled(): Boolean {
+        return locationRepository.isGpsEnabled()
+    }
+
+    fun fetchCurrentLocation() {
+
+        viewModelScope.launch {
+
+            _locationState.value = UiState.Loading
+
+            val result = locationRepository.fetchLocation()
+
+            println("Location fetch $result")
+            result.onSuccess { location ->
+
+                _locationState.value = UiState.Success(location)
+                val addressResult =
+                    locationRepository.getAddressFromLocation(
+                        latitude = location.first,
+                        longitude = location.second
+                    )
+
+                println("Location address fetch $addressResult")
+
+
+                val address = addressResult.getOrNull() ?: ""
+                _userState.update { state ->
+
+                    when (state) {
+
+                        is UiState.Success -> {
+
+                            UiState.Success(
+                                state.data.copy(
+                                  address = address ?: "",
+                                    lat = location.first,
+                                    long = location.second
+
+                                )
+                            )
+                        }
+
+                        else -> state
+                    }
+
+                }
+            }
+
+            result.onFailure { exception ->
+
+                _locationState.value =
+                    UiState.Error(
+                        Exception(exception)
+                    )
+            }
+        }
+    }
+
+private val _updateState = MutableStateFlow<UiState<String>>(UiState.Idle)
+val updateState = _updateState.asStateFlow()
+
+    fun updateProfile(userProfile: UserProfile) {
+
+        viewModelScope.launch {
+
+            _updateState.value = UiState.Loading
+
+            _updateState.value =
+                userRepository.updateUserProfile(userProfile)
+            getUserProfile()
+            delay(1500)
+            resetUpdateState()
+        }
+    }
+
+    fun resetUpdateState(){
+        _updateState.value = UiState.Idle
     }
 }
 

@@ -8,6 +8,8 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class UserRepository(private val supabase: SupabaseClient) {
 
@@ -61,6 +63,46 @@ class UserRepository(private val supabase: SupabaseClient) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+
+    @OptIn(ExperimentalTime::class)
+    suspend fun updateUserProfile(
+        userProfile: UserProfile
+    ): UiState<String> {
+
+        return try {
+
+            val userId = supabase.auth.currentUserOrNull()?.id
+
+            if (userId == null) {
+                return UiState.Error(
+                    Exception("User not logged in")
+                )
+            }
+
+            supabase.from("users").update({
+
+                set("name", userProfile.name)
+                set("email", userProfile.email)
+                set("phone", userProfile.phone)
+                set("address", userProfile.address)
+                set("lat", userProfile.lat)
+                set("long", userProfile.long)
+                set("updated_at", Clock.System.now())
+            }) {
+
+                filter {
+                    eq("auth_user_id", userId)
+                }
+            }
+
+            UiState.Success("Profile updated successfully")
+
+        } catch (e: Exception) {
+
+            UiState.Error(e)
         }
     }
 }

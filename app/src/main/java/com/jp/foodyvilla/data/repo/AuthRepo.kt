@@ -1,32 +1,23 @@
 package com.jp.foodyvilla.data.repo
 
 import android.content.Context
-import android.system.Os.remove
 import android.util.Log
 import com.jp.foodyvilla.data.model.login.LoginResponse
 import com.jp.foodyvilla.presentation.utils.UiState
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.IDToken
-import io.github.jan.supabase.auth.user.UserInfo
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.IDToken
+import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.user.UserInfo
 import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.functions.functions
-import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
-import io.ktor.client.utils.EmptyContent.headers
-import io.ktor.http.headers
 import io.ktor.utils.io.InternalAPI
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.boolean
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
-import kotlinx.serialization.json.put // 👈 CRITICAL IMPORT
 import kotlin.time.ExperimentalTime
 
 class AuthRepo(
@@ -112,7 +103,6 @@ class AuthRepo(
     }
 
 
-
     fun signInWithSupabase(idToken: String): Flow<UiState<UserInfo>> = flow {
 
         println("Token : $idToken")
@@ -137,20 +127,31 @@ class AuthRepo(
         }
     }
 
-    fun isLoggedIn(): Boolean {
-        try {
-            val token = supabase.auth.currentAccessTokenOrNull()
 
-            println("Token: $token")
-            println(supabase.auth.currentUserOrNull())
-            println(token)
-            if (token.isNullOrEmpty()) {
-                return false
-            } else {
-                return true
+
+    suspend fun isLoggedIn(): Boolean {
+        val status = supabase.auth.sessionStatus.first {
+            it !is SessionStatus.Initializing
+        }
+
+        println("is Logged in $status")
+        return when ( status ) {
+
+            is SessionStatus.Authenticated -> {
+                true
             }
-        } catch (e: Exception) {
-            return false
+
+            is SessionStatus.NotAuthenticated -> {
+                false
+            }
+
+            is SessionStatus.RefreshFailure -> {
+                false
+            }
+
+            else -> {
+                false
+            }
         }
     }
 

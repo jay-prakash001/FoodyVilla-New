@@ -1,26 +1,70 @@
 package com.jp.foodyvilla.presentation.screens.account
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
-import android.location.LocationManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Logout
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.PinDrop
+import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,55 +75,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.core.content.PermissionChecker
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
 import com.jp.foodyvilla.data.model.user.UserProfile
 import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
 import com.jp.foodyvilla.presentation.utils.UiState
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 // ─── Permission & Location Helpers ───────────────────────────────────────────
 
-private fun Context.hasLocationPermission(): Boolean {
-    return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PermissionChecker.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PermissionChecker.PERMISSION_GRANTED
-}
-
-private fun Context.isGpsEnabled(): Boolean {
-    val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-}
-
-private suspend fun fetchLocation(
-    context: Context,
-    onSuccess: (Double, Double) -> Unit,
-    onFailure: (String) -> Unit
-) {
-    try {
-        val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-        val result = fusedClient.getCurrentLocation(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            CancellationTokenSource().token
-        ).await()
-
-        if (result != null) {
-            onSuccess(result.latitude, result.longitude)
-        } else {
-            onFailure("Location fix unavailable. Try again.")
-        }
-    } catch (e: SecurityException) {
-        onFailure("Permission denied.")
-    } catch (e: Exception) {
-        onFailure("Error: ${e.localizedMessage}")
-    }
-}
 
 // ─── Main Screen Entry ───────────────────────────────────────────────────────
 
@@ -87,54 +90,106 @@ private suspend fun fetchLocation(
 @Composable
 fun ProfileScreen(
     viewModel: LoginViewModel,
-    onSaveChanges: (UserProfile) -> Unit,
+    onSaveChanges: (UserProfile) -> Unit = {},
     onLogout: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
     val userState by viewModel.user.collectAsStateWithLifecycle()
-
+    val userUpdateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         viewModel.getUserProfile()
     }
+    var showLoading by remember { mutableStateOf(false) }
 
+    when (userUpdateState) {
+        is UiState.Error -> {
+            Toast.makeText(context, (userUpdateState as UiState.Error).msg, Toast.LENGTH_SHORT)
+                .show()
+            showLoading = false
+        }
+
+        UiState.Idle -> showLoading = false
+
+        UiState.Loading -> showLoading = true
+
+        is UiState.Success -> {
+            Toast.makeText(context, "Profile Updated Successfully", Toast.LENGTH_SHORT).show()
+            showLoading = false
+
+        }
+    }
     when (userState) {
         is UiState.Success -> {
-            ProfileContent(
-                userProfile = (userState as UiState.Success<UserProfile>).data,
-                onSaveChanges = onSaveChanges,
-                onLogout = onLogout,
-                onNavigateBack = onNavigateBack
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center){
+                ProfileContent(
+                    onSaveChanges = {
+                        viewModel.updateProfile(it)
+                    },
+                    onLogout = onLogout,
+                    onNavigateBack = onNavigateBack, viewModel = viewModel
+                )
+
+                if(showLoading){
+                    CircularProgressIndicator()
+                }
+            }
+
         }
+
         is UiState.Loading -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
-        else -> Unit
+
+        else -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileContent(
-    userProfile: UserProfile,
+
     onSaveChanges: (UserProfile) -> Unit,
     onLogout: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: LoginViewModel
 ) {
+    val userProfile = viewModel.user.collectAsStateWithLifecycle().value
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-
+    val locationState by viewModel.locationState.collectAsStateWithLifecycle()
     // Form State
-    var name by remember { mutableStateOf(userProfile.name ?: "") }
-    var email by remember { mutableStateOf(userProfile.email ?: "") }
-    var phone by remember { mutableStateOf(userProfile.phone ?: "") }
-    var address by remember { mutableStateOf(userProfile.address ?: "") }
-    var lat by remember { mutableStateOf(userProfile.lat) }
-    var lon by remember { mutableStateOf(userProfile.long) }
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var lat by remember { mutableStateOf<Double?>(null) }
+    var lon by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(userProfile) {
+
+        if(userProfile is UiState.Success){
+
+            name = userProfile.data.name ?: ""
+            email = userProfile.data.email ?: ""
+            phone = userProfile.data.phone ?: ""
+            address = userProfile.data.address ?: ""
+            lat = userProfile.data.lat
+            lon = userProfile.data.long
+        }
+
+    }
 
     // UI Feedback State
     var isSaving by remember { mutableStateOf(false) }
@@ -144,22 +199,46 @@ private fun ProfileContent(
 
     val saveScale by animateFloatAsState(if (isSaving) 0.96f else 1f, label = "save_anim")
 
+
+
+    when (val state = locationState) {
+
+        is UiState.Success -> {
+
+            lat = state.data.first
+            lon = state.data.second
+
+            isFetchingLocation = false
+        }
+
+        is UiState.Error -> {
+
+            isFetchingLocation = false
+            Toast.makeText(context, (locationState as UiState.Error).msg, Toast.LENGTH_SHORT).show()
+
+        }
+
+        is UiState.Loading -> {
+
+            isFetchingLocation = true
+        }
+
+        else -> {
+            isFetchingLocation = false
+        }
+    }
+
     // Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val granted = permissions.values.any { it }
         if (granted) {
-            if (context.isGpsEnabled()) {
+            if (viewModel.isGpsEnabled()) {
+
                 isFetchingLocation = true
-                scope.launch {
-                    fetchLocation(context, { lt, ln ->
-                        lat = lt; lon = ln; isFetchingLocation = false
-                    }, { msg ->
-                        isFetchingLocation = false
-                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                    })
-                }
+
+                viewModel.fetchCurrentLocation()
             } else {
                 showGpsDialog = true
             }
@@ -190,7 +269,19 @@ private fun ProfileContent(
                 Button(
                     onClick = {
                         isSaving = true
-                        onSaveChanges(userProfile.copy(name=name, email=email, phone=phone, address=address, lat=lat, long=lon))
+                        if (userProfile is UiState.Success) {
+
+                            onSaveChanges(
+                                userProfile.data.copy(
+                                    name = name,
+                                    email = email,
+                                    phone = phone,
+                                    address = address,
+                                    lat = lat,
+                                    long = lon
+                                )
+                            )
+                        }
                         isSaving = false
                     },
                     modifier = Modifier
@@ -201,8 +292,15 @@ private fun ProfileContent(
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    if (isSaving) CircularProgressIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    else Text("Save Changes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    if (isSaving) CircularProgressIndicator(
+                        Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    else Text(
+                        "Save Changes",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -210,7 +308,8 @@ private fun ProfileContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding).imePadding()
+                .padding(padding)
+                .imePadding()
                 .verticalScroll(scrollState)
         ) {
             // Header / Hero Section
@@ -219,7 +318,10 @@ private fun ProfileContent(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primaryContainer
+                            )
                         )
                     )
                     .padding(vertical = 40.dp),
@@ -255,33 +357,53 @@ private fun ProfileContent(
 
             // Information Groups
             ProfileGroup(title = "Account Information", icon = Icons.Rounded.AccountCircle) {
-                ProfileField(value = name, onValueChange = { name = it }, label = "Full Name", icon = Icons.Rounded.Person)
-                ProfileField(value = email, onValueChange = { email = it }, label = "Email Address", icon = Icons.Rounded.Email, type = KeyboardType.Email)
-                ProfileField(value = phone, onValueChange = { phone = it }, label = "Phone", icon = Icons.Rounded.Phone, type = KeyboardType.Phone)
+                ProfileField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = "Full Name",
+                    icon = Icons.Rounded.Person
+                )
+                ProfileField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = "Email Address",
+                    icon = Icons.Rounded.Email,
+                    type = KeyboardType.Email
+                )
+                ProfileField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = "Phone",
+                    icon = Icons.Rounded.Phone,
+                    type = KeyboardType.Phone
+                )
             }
 
             ProfileGroup(title = "Delivery Details", icon = Icons.Rounded.Map) {
-                ProfileField(value = address, onValueChange = { address = it }, label = "Full Address", icon = Icons.Rounded.Home, singleLine = false)
+                ProfileField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = "Full Address",
+                    icon = Icons.Rounded.Home,
+                    singleLine = false
+                )
 
                 FilledTonalButton(
                     onClick = {
-                        if (context.hasLocationPermission()) {
-                            if (context.isGpsEnabled()) {
+                        if (viewModel.hasLocationPermission()) {
+                            if (viewModel.isGpsEnabled()) {
                                 isFetchingLocation = true
-                                scope.launch {
-                                    fetchLocation(context, { lt, ln ->
-                                        lat = lt; lon = ln; isFetchingLocation = false
-                                    }, { msg ->
-                                        isFetchingLocation = false
-                                        scope.launch { snackbarHostState.showSnackbar(msg) }
-                                    })
-                                }
+
+                                viewModel.fetchCurrentLocation()
                             } else {
                                 showGpsDialog = true
                             }
                         } else {
                             permissionLauncher.launch(
-                                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
                             )
                         }
                     },
@@ -303,8 +425,15 @@ private fun ProfileContent(
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.PinDrop, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Row(
+                            Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Rounded.PinDrop,
+                                null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "GPS: ${"%.4f".format(lat)}, ${"%.4f".format(lon)}",
@@ -325,11 +454,18 @@ private fun ProfileContent(
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
             confirmButton = {
-                Button(onClick = onLogout, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                Button(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
                     Text("Logout")
                 }
             },
-            dismissButton = { TextButton(onClick = { showLogoutDialog = false }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(onClick = {
+                    showLogoutDialog = false
+                }) { Text("Cancel") }
+            },
             title = { Text("Confirm Logout") },
             text = { Text("Are you sure you want to sign out of your account?") },
             icon = { Icon(Icons.Rounded.Warning, null) }
@@ -352,19 +488,36 @@ private fun ProfileContent(
 }
 
 @Composable
-private fun ProfileGroup(title: String, icon: ImageVector, content: @Composable ColumnScope.() -> Unit) {
+private fun ProfileGroup(
+    title: String,
+    icon: ImageVector,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Column(Modifier.padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Icon(
+                icon,
+                null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
             Spacer(Modifier.width(8.dp))
-            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
         Spacer(Modifier.height(12.dp))
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                content = content
+            )
         }
     }
 }
