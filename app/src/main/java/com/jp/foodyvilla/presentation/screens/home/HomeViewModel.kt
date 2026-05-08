@@ -9,6 +9,7 @@ import com.jp.foodyvilla.data.model.FoodItem
 import com.jp.foodyvilla.data.model.MockData
 import com.jp.foodyvilla.data.model.cart.CartItem
 import com.jp.foodyvilla.data.model.order.OrderModel
+import com.jp.foodyvilla.data.model.user.UserProfile
 import com.jp.foodyvilla.data.repo.CartRepository
 import com.jp.foodyvilla.data.repo.LocationRepository
 import com.jp.foodyvilla.data.repo.OfferRepo
@@ -98,14 +99,16 @@ data class HomeUiState(
 }
 
 
-
 data class OrderUiState(
     val customerName: String = "",
     val phone: String = "",
     val address: String = "",
     val instructions: String = "",
-    val orderType: String = "Delivery"
+    val orderType: String = "Delivery",
+    val lat: Double = 0.0,
+    val long: Double = 0.0
 )
+
 class HomeViewModel(
     private val offerRepo: OfferRepo,
     private val productRepo: ProductRepo,
@@ -148,6 +151,73 @@ class HomeViewModel(
     fun updateOrderType(value: String) {
         _orderState.update { it.copy(orderType = value) }
     }
+
+    fun updateCustomerDetailsForOrder(user: UserProfile) {
+        viewModelScope.launch {
+            _orderState.update {
+                it.copy(
+                    customerName = user.name ?: "",
+                    address = user.address ?: "",
+                    phone = user.phone ?: "",
+                    lat = user.lat ?: 0.0,
+                    long = user.long ?: 0.0
+                )
+            }
+        }
+    }
+
+    private val _locationState =
+        MutableStateFlow<UiState<Pair<Double, Double>>>(UiState.Idle)
+
+    val locationState = _locationState.asStateFlow()
+
+    fun fetchCurrentLocation() {
+
+        viewModelScope.launch {
+
+            _locationState.value = UiState.Loading
+
+            val result = locationRepository.fetchLocation()
+
+            println("Location fetch $result")
+            result.onSuccess { location ->
+
+                _locationState.value = UiState.Success(location)
+                val addressResult =
+                    locationRepository.getAddressFromLocation(
+                        latitude = location.first,
+                        longitude = location.second
+                    )
+
+                println("Location address fetch $addressResult")
+
+
+                val address = addressResult.getOrNull() ?: ""
+                _orderState.update { state ->
+
+
+                    state.copy(address = address, lat = location.first, long = location.second)
+
+
+                }
+            }
+
+            result.onFailure { exception ->
+
+                _locationState.value =
+                    UiState.Error(
+                        Exception(exception)
+                    )
+            }
+        }
+    }
+    fun hasLocationPermission(): Boolean {
+        return locationRepository.hasLocationPermission()
+    }
+
+    fun isGpsEnabled(): Boolean {
+        return locationRepository.isGpsEnabled()
+    }
     val fcm = FirebaseMessaging.getInstance()
 
 
@@ -165,7 +235,7 @@ class HomeViewModel(
     }
 
 
-    private val _orderHistoryState  = MutableStateFlow<UiState<List<OrderModel>>>(UiState.Idle)
+    private val _orderHistoryState = MutableStateFlow<UiState<List<OrderModel>>>(UiState.Idle)
     val orderHistoryState = _orderHistoryState.asStateFlow()
     fun getOrderedItems() {
         viewModelScope.launch {
@@ -242,7 +312,6 @@ class HomeViewModel(
         viewModelScope.launch {
 
 
-
             println("Payment Success $razorpayPaymentId  $razorpaySignature  $razorpayOrderId")
             // TODO: Save transaction to your DB / backend here
 //            _uiState.value = CheckoutUiState.PaymentSuccess(
@@ -277,7 +346,7 @@ class HomeViewModel(
 
 
     fun placeOrder(
-        transactionId : String
+        transactionId: String
     ) {
         val cartItems = _uiState.value.cartItems
 
@@ -291,21 +360,21 @@ class HomeViewModel(
         viewModelScope.launch {
 
 //            getCurrentLocation().collectLatest {
-//                println("Location $it")
+////                println("Location $it")
 //                if (it is UiState.Success) {
-                    orderRepository.placeOrder(
-                        cartItems = cartItems,
-                        address = _orderState.value.address,
-                        phone = _orderState.value.phone,
-                        customerName = _orderState.value.customerName,
-                        instruction =  _orderState.value.instructions,
-                        orderType =  _orderState.value.orderType,
-                        transactionId =  transactionId
+            orderRepository.placeOrder(
+                cartItems = cartItems,
+                address = _orderState.value.address,
+                phone = _orderState.value.phone,
+                customerName = _orderState.value.customerName,
+                instruction = _orderState.value.instructions,
+                orderType = _orderState.value.orderType,
+                transactionId = transactionId,
 //                        lat = it.data.first,
 //                        long = it.data.second
-                    ).collectLatest { state ->
+            ).collectLatest { state ->
 
-                        println("Order Place State $state")
+                println("Order Place State $state")
                 when (state) {
                     is UiState.Loading -> {
 //                        _uiState.update {
@@ -335,10 +404,12 @@ class HomeViewModel(
                     }
 
 //
-                   else->{}
-                }}
+                    else -> {}
+                }
+            }
         }
     }
+
     // ─────────────────────────────────────────
 // 🧹 CLEAR ORDER STATE (call after showing snackbar/dialog)
 // ─────────────────────────────────────────
@@ -350,6 +421,7 @@ class HomeViewModel(
 ////            )
 //        }
     }
+
     fun updateCartItemQuantity(item: FoodItem, quantity: Int = 1) {
 
         if (quantity == 0) {

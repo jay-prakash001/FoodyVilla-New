@@ -49,7 +49,7 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
         _otp.value = newValue
     }
 
-    private val _isLoggedIn = MutableStateFlow(false)
+    private val _isLoggedIn = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
     val isLoggedIn = _isLoggedIn.asStateFlow()
 
     init {
@@ -59,6 +59,7 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
                 println("User $it")
             }
         }
+        getUserProfile()
         updateFcmToken()
 
     }
@@ -67,7 +68,9 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
     private fun isLoggedIn() {
         viewModelScope.launch {
 
-            _isLoggedIn.value = authRepo.isLoggedIn()
+         authRepo.isLoggedIn().collectLatest {
+             _isLoggedIn.value = it
+         }
             println("Login status : ${authRepo.isLoggedIn()}    ${_isLoggedIn.value}")
         }
     }
@@ -102,7 +105,7 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
                 println("Login res $it")
                 _loginUiState.value = it
                 if (it is UiState.Success) {
-                    _isLoggedIn.value = true
+                    _isLoggedIn.value = UiState.Success(true)
                     updateFcmToken()
                 }
             }

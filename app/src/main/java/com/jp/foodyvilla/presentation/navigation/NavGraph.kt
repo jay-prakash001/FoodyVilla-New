@@ -42,20 +42,7 @@ fun FoodyVillaNavGraph() {
     {
         composable<Screen.Splash> {
             SplashScreen(
-                onSplashComplete = {
-                    if (isLoggedIn) {
-                        navController.navigate(Screen.Home) {
-                            popUpTo(Screen.Splash) { inclusive = true }
-                        }
-                    } else {
-                        navController.navigate(Screen.Login) {
-                            popUpTo(Screen.Splash) { inclusive = true }
-                        }
-//                        Toast.make/Text(context, "Unable to login", Toast.LENGTH_SHORT).show()
-                    }
-
-
-                }
+                loginViewModel = loginViewModel, navController = navController
             )
         }
 
@@ -111,7 +98,7 @@ fun FoodyVillaNavGraph() {
         composable<Screen.Cart> {
             CartScreen(
                 onBack = { navController.popBackStack() },
-                onBrowseMenu = { navController.navigate(Screen.Home) }, viewModel = homeViewModel
+                onBrowseMenu = { navController.navigate(Screen.Home) }, viewModel = homeViewModel, loginViewModel = loginViewModel
             )
         }
 
@@ -158,9 +145,9 @@ fun FoodyVillaNavGraph() {
                 viewModel = loginViewModel,
                 onLogout = {
                     loginViewModel.logout()
-                    navController.navigate(Screen.Login){
+                    navController.navigate(Screen.Login) {
                         popUpTo(Screen.Profile) {
-                            inclusive  = true
+                            inclusive = true
                         }
                     }
                 },

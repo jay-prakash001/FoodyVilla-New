@@ -3,6 +3,10 @@ package com.jp.foodyvilla.presentation.screens.cart
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -17,8 +21,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -29,16 +35,21 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -48,6 +59,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,7 +77,10 @@ import com.jp.foodyvilla.data.model.cart.CartItem
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.home.QuantitySelector
 import com.jp.foodyvilla.presentation.screens.home.VegDot
+import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
+import com.jp.foodyvilla.presentation.utils.UiState
 import com.razorpay.Checkout
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 
@@ -74,25 +89,94 @@ import org.json.JSONObject
 fun CartScreen(
     onBack: () -> Unit,
     onBrowseMenu: () -> Unit,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    loginViewModel: LoginViewModel
 ) {
 
     val context = LocalContext.current
+    val user = loginViewModel.user.collectAsStateWithLifecycle().value
 
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
         viewModel.getCartItems()
     }
+    LaunchedEffect(user) {
+        if(user is UiState.Success){
+            viewModel.updateCustomerDetailsForOrder(user = user.data)
+
+        }
+    }
+    val locationState by viewModel.locationState.collectAsStateWithLifecycle()
+
+    var isSaving by remember { mutableStateOf(false) }
+    var isFetchingLocation by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showGpsDialog by remember { mutableStateOf(false) }
 
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
+    when (val state = locationState) {
+
+        is UiState.Success -> {
+
+            isFetchingLocation = false
+        }
+
+        is UiState.Error -> {
+
+            isFetchingLocation = false
+            Toast.makeText(context, (locationState as UiState.Error).msg, Toast.LENGTH_SHORT).show()
+
+        }
+
+        is UiState.Loading -> {
+
+            isFetchingLocation = true
+        }
+
+        else -> {
+            isFetchingLocation = false
         }
     }
 
+    // Permission Launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.any { it }
+        if (granted) {
+            if (viewModel.isGpsEnabled()) {
+
+                isFetchingLocation = true
+
+                viewModel.fetchCurrentLocation()
+            } else {
+                showGpsDialog = true
+            }
+        } else {
+            scope.launch { snackbarHostState.showSnackbar("Location permission required.") }
+
+
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            ).apply {
+                data = Uri.fromParts(
+                    "package",
+                    context.packageName,
+                    null
+                )
+            }
+
+            context.startActivity(intent)
+        }
+    }
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
@@ -109,7 +193,8 @@ fun CartScreen(
 
 
     // Validation
-    val nameError = if (nameTouched && orderState.customerName.isBlank()) "Name is required" else null
+    val nameError =
+        if (nameTouched && orderState.customerName.isBlank()) "Name is required" else null
     val phoneError = when {
         phoneTouched && orderState.phone.isBlank() -> "Phone number is required"
         phoneTouched && !orderState.phone.matches(Regex("^[+]?[0-9]{7,15}$")) -> "Enter a valid phone number"
@@ -134,6 +219,7 @@ fun CartScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
+
         bottomBar = {
             if (state.cartItems.isNotEmpty()) {
                 Surface(shadowElevation = 8.dp) {
@@ -144,7 +230,7 @@ fun CartScreen(
                                 context = context,
                                 name = orderState.customerName,
                                 contact = orderState.phone,
-                                amount = (viewModel.getTotalCartValue()*100).toString()
+                                amount = (viewModel.getTotalCartValue() * 100).toString()
                             )
 //                            viewModel.placeOrder(
 //                                address = address,
@@ -345,6 +431,41 @@ fun CartScreen(
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
+
+                            FilledTonalButton(
+                                onClick = {
+
+                                    println("clicked ")
+                                    if (viewModel.hasLocationPermission()) {
+                                        if (viewModel.isGpsEnabled()) {
+                                            isFetchingLocation = true
+                                            println("location permission and gps ")
+
+
+                                            viewModel.fetchCurrentLocation()
+                                        } else {
+                                            showGpsDialog = true
+                                        }
+                                    } else {
+                                        permissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.small
+                            ) {
+                                if (isFetchingLocation) {
+                                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Rounded.MyLocation, null, Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Deliver To  Current Location")
+                                }
+                            }
                         }
 
                         // Special Instructions — optional
@@ -397,6 +518,20 @@ fun CartScreen(
                 }
             }
         }
+    }
+
+    if (showGpsDialog) {
+        AlertDialog(
+            onDismissRequest = { showGpsDialog = false },
+            confirmButton = {
+                Button(onClick = {
+                    showGpsDialog = false
+                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                }) { Text("Open Settings") }
+            },
+            title = { Text("GPS Disabled") },
+            text = { Text("Please turn on your device location to auto-detect your address.") }
+        )
     }
 }
 
@@ -507,14 +642,3 @@ private fun CartItemCard(
     }
 }
 
-@Composable
-private fun SummaryRow(
-    label: String,
-    value: String,
-    valueColor: Color = MaterialTheme.colorScheme.onSurface
-) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, color = valueColor, fontWeight = FontWeight.SemiBold)
-    }
-}

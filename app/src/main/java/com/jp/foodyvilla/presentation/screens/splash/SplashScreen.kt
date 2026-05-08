@@ -12,57 +12,99 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Red
 import androidx.compose.ui.graphics.Color.Companion.White
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
 import com.jp.foodyvilla.R
+import com.jp.foodyvilla.presentation.navigation.Screen
+import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
+import com.jp.foodyvilla.presentation.utils.UiState
 
 @Composable
-fun SplashScreen(onSplashComplete: () -> Unit) {
-    val scale = remember { Animatable(0.6f) }
-    val alpha = remember { Animatable(0f) }
+fun SplashScreen(
+    loginViewModel: LoginViewModel,
+    navController: NavController
+) {
 
-    LaunchedEffect(Unit) {
-        scale.animateTo(1f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy))
-        alpha.animateTo(1f, animationSpec = tween(400))
-        delay(1800)
-        onSplashComplete()
+    val isLoggedIn =
+        loginViewModel.isLoggedIn.collectAsStateWithLifecycle().value
+
+    var splashFinished by remember {
+        mutableStateOf(false)
     }
 
+    // Minimum splash duration
+    LaunchedEffect(Unit) {
+        delay(1800)
+        splashFinished = true
+    }
 
-    SplashScreen0 {  }
-//    FoodyVillaSplash()
+    // Navigate only after BOTH:
+    // 1. splash completed
+    // 2. auth state received
+    LaunchedEffect(isLoggedIn, splashFinished) {
+
+        if (!splashFinished) return@LaunchedEffect
+
+        when (isLoggedIn) {
+
+            is UiState.Success -> {
+
+                if (isLoggedIn.data) {
+
+                    navController.navigate(Screen.Home) {
+                        popUpTo(Screen.Splash) {
+                            inclusive = true
+                        }
+                    }
+
+                } else {
+
+                    navController.navigate(Screen.Login) {
+                        popUpTo(Screen.Splash) {
+                            inclusive = true
+                        }
+                    }
+                }
+            }
+
+            is UiState.Error -> {
+
+                navController.navigate(Screen.Login) {
+                    popUpTo(Screen.Splash) {
+                        inclusive = true
+                    }
+                }
+            }
+
+            else -> Unit
+        }
+    }
+
+    SplashScreen0()
 }
 
 
 @Composable
-fun SplashScreen0(onFinished: () -> Unit) {
+fun SplashScreen0() {
 
-    /* auto-navigate after 2.8 s */
-    LaunchedEffect(Unit) {
-        delay(2_800)
-        onFinished()
-    }
+
 
     /* entry scale + fade */
     var visible by remember { mutableStateOf(false) }

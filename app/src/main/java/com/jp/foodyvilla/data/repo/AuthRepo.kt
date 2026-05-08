@@ -15,8 +15,10 @@ import io.github.jan.supabase.functions.functions
 import io.ktor.client.statement.bodyAsText
 import io.ktor.utils.io.InternalAPI
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import kotlin.time.ExperimentalTime
 
@@ -129,29 +131,43 @@ class AuthRepo(
 
 
 
-    suspend fun isLoggedIn(): Boolean {
-        val status = supabase.auth.sessionStatus.first {
-            it !is SessionStatus.Initializing
-        }
+    fun isLoggedIn(): Flow<UiState<Boolean>> = flow {
 
-        println("is Logged in $status")
-        return when ( status ) {
+        try {
 
-            is SessionStatus.Authenticated -> {
-                true
-            }
+            emit(UiState.Loading)
 
-            is SessionStatus.NotAuthenticated -> {
-                false
-            }
+            supabase.auth.sessionStatus
+                .filter { it !is SessionStatus.Initializing }
+                .map { status ->
 
-            is SessionStatus.RefreshFailure -> {
-                false
-            }
+                    println("is Logged in $status")
 
-            else -> {
-                false
-            }
+                    when (status) {
+
+                        is SessionStatus.Authenticated -> true
+
+                        is SessionStatus.NotAuthenticated -> false
+
+                        is SessionStatus.RefreshFailure -> false
+
+                        else -> false
+                    }
+                }
+                .collect { isLogged ->
+
+                    emit(UiState.Success(isLogged))
+                }
+
+        } catch (e: Exception) {
+
+            println("Login Check Error: ${e.message}")
+
+            emit(
+                UiState.Error(
+                    e
+                )
+            )
         }
     }
 
