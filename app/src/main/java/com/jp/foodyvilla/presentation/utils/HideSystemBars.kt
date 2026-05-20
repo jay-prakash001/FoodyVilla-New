@@ -8,26 +8,26 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.platform.LocalView
+
+import androidx.compose.runtime.SideEffect
+
 
 @Composable
 fun HideSystemBars() {
     val context = LocalContext.current
+    val view = LocalView.current
 
-    // Safely cast to Activity
-    val activity = context as? Activity ?: return
-    val window = activity.window
-    val decorView = window.decorView
+    // SideEffect runs every time the composition is successful
+    // ensuring the bars stay hidden even if something else tries to show them
+    SideEffect {
+        val window = (context as? Activity)?.window ?: return@SideEffect
+        val controller = WindowCompat.getInsetsController(window, view)
 
-    LaunchedEffect(Unit) {
-        // 1. Tell the window not to fit system windows (Enables Edge-to-Edge)
+        // This is the core logic to hide bars
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        val controller = WindowCompat.getInsetsController(window, decorView)
-
-        // 2. Hide both Status and Navigation bars
         controller.hide(WindowInsetsCompat.Type.systemBars())
-
-        // 3. Reveal temporarily on swipe without resizing the layout layout
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
