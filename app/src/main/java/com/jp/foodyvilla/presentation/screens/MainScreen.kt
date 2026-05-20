@@ -77,6 +77,7 @@ import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
 import com.jp.foodyvilla.presentation.screens.orders.OrderHistoryScreen
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
+import com.jp.foodyvilla.presentation.utils.HideSystemBars
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,6 +101,9 @@ fun MainScreen(
         "Contact Us"
     )
     val title = titles[selectedPage]
+
+//    HideSystemBars()
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background, // Change from Transparent
         modifier = Modifier.fillMaxSize(),
