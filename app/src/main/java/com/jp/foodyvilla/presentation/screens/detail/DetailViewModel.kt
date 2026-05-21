@@ -32,12 +32,34 @@ class DetailViewModel(
     private val _reviews = MutableStateFlow<List<Review>>(emptyList())
     val reviews = _reviews.asStateFlow()
 
+    private val _recommendedItems = MutableStateFlow<List<OutletMenuItem>>(emptyList())
+    val recommendedItems = _recommendedItems.asStateFlow()
+
     fun loadItem(itemId: Long) {
         viewModelScope.launch {
             productRepo.getProductById(itemId).collect { item ->
                 _uiState.update { it.copy(isLoading = false, item = item) }
                 // Load reviews for this product
-                loadReviews(item?.product_id ?: 0L)
+                if (item != null) {
+                    loadReviews(item.product_id)
+                    loadRecommended(item.product_catalog?.category_id ?: 0L, item.id)
+                }
+            }
+        }
+    }
+
+    private fun loadRecommended(categoryId: Long, currentItemId: Long) {
+        viewModelScope.launch {
+            // Fetch items from the same category
+            productRepo.getOutletsWithMenu().collect { outlets ->
+                val recommended = outlets.flatMap { it.outlet_menu_items ?: emptyList() }
+                    .filter { 
+                        it.product_catalog?.category_id == categoryId && 
+                        it.id != currentItemId 
+                    }
+                    .distinctBy { it.product_id }
+                    .take(6)
+                _recommendedItems.value = recommended
             }
         }
     }

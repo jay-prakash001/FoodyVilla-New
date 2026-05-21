@@ -53,6 +53,7 @@ fun DetailScreen(
     val primaryRed = MaterialTheme.colorScheme.primary
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val reviews by viewModel.reviews.collectAsStateWithLifecycle()
+    val recommended by viewModel.recommendedItems.collectAsStateWithLifecycle()
     val homeState by homeViewModel.uiState.collectAsStateWithLifecycle()
     val item = state.item
 
@@ -151,6 +152,68 @@ fun DetailScreen(
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
+
+                    Spacer(Modifier.height(24.dp))
+
+                    // Recommended Products
+                    if (recommended.isNotEmpty()) {
+                        Text("Recommended for You", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(12.dp))
+                        
+                        // Use a FlowRow or similar for grid effect inside LazyColumn
+                        // Or just chunk the items for a simple grid-like layout
+                        recommended.chunked(2).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                rowItems.forEach { recItem ->
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        RecommendedCard(item = recItem, onClick = { onItemClick(recItem.id) })
+                                    }
+                                }
+                                if (rowItems.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecommendedCard(item: OutletMenuItem, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column {
+            AsyncImage(
+                model = item.image.firstOrNull(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth().height(120.dp),
+                contentScale = ContentScale.Crop
+            )
+            Column(Modifier.padding(8.dp)) {
+                Text(
+                    item.product_catalog?.name ?: "N/A",
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    RatingChip(rating = item.rating.toDouble())
+                    Text("₹${item.price}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
             }
         }

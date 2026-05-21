@@ -96,7 +96,12 @@ class HomeViewModel(
     }
 
     fun updatePhone(value: String) {
-        _orderState.update { it.copy(phone = value) }
+        val formattedPhone = if (value.length == 10 && value.all { it.isDigit() }) {
+            "+91$value"
+        } else {
+            value
+        }
+        _orderState.update { it.copy(phone = formattedPhone) }
     }
 
     fun updateAddress(value: String) {
@@ -275,7 +280,7 @@ class HomeViewModel(
                                 razorpayOrderId = razorpayOrderId,
                                 razorpayPaymentId = razorpayPaymentId,
                                 razorpaySignature = razorpaySignature,
-                                amount = (amount * 100).toLong(),
+                                amount = amount.toLong(),
                                 status = "captured"
                             ).collectLatest { }
 

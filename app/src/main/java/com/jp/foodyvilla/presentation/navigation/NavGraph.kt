@@ -117,7 +117,8 @@ fun FoodyVillaNavGraph() {
                 onProceedToPayment = { outletId ->
                     navController.navigate(Screen.Payment(outletId))
                 },
-                viewModel = homeViewModel
+                viewModel = homeViewModel,
+                loginViewModel = loginViewModel
             )
         }
 

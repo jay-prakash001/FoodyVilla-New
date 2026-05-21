@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.data.model.order.OrderItem
 import com.jp.foodyvilla.data.model.order.OrderModel
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
@@ -100,8 +99,7 @@ fun OrderHistoryScreen(
 fun OrderCard(order: OrderModel, onCancel: () -> Unit, onAddReview: (Long) -> Unit) {
     var showCancelDialog by remember { mutableStateOf(false) }
     val totalAmount = order.order_items.sumOf { it.total_price }
-    val totalQty = order.order_items.sumOf { it.qty }
-
+    
     if (showCancelDialog) {
         AlertDialog(
             onDismissRequest = { showCancelDialog = false },
@@ -133,20 +131,26 @@ fun OrderCard(order: OrderModel, onCancel: () -> Unit, onAddReview: (Long) -> Un
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: ID and Status
+            // Header: Outlet Details
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                AsyncImage(
+                    model = order.outlets?.logo_url,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Order #${order.id.take(8).uppercase()}",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = order.outlets?.name ?: "Unknown Outlet",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = order.created_at.substringBefore("T"),
+                        text = "Order #${order.id.take(8).uppercase()}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -155,6 +159,23 @@ fun OrderCard(order: OrderModel, onCancel: () -> Unit, onAddReview: (Long) -> Un
             }
 
             Spacer(Modifier.height(16.dp))
+
+            // Order Metadata
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = order.created_at.substringBefore("T"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Text(
+                    text = order.order_type?.replaceFirstChar { it.uppercase() } ?: "Delivery",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
 
             // Customer Details Section
             Surface(
@@ -172,7 +193,7 @@ fun OrderCard(order: OrderModel, onCancel: () -> Unit, onAddReview: (Long) -> Un
             }
 
             Spacer(Modifier.height(16.dp))
-            Divider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(16.dp))
 
             // Order Items

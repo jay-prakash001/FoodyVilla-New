@@ -203,29 +203,39 @@ fun FoodGridCard(
                 VegDot(isVeg = item.product_catalog?.is_veg ?: true)
                 Text(item.product_catalog?.name ?: "", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             }
-            Text("₹${item.price}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 4.dp))
-            
-            if (!inCart) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(36.dp)
-                        .clickable { onAddToCart() },
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("+", style = MaterialTheme.typography.titleLarge)
-                    }
-                }
-            } else {
-                val cartItem = homeState.cartItems.find { it.menu_item_id == item.id }
-                QuantitySelector(
-                    quantity = cartItem?.qty?.toInt() ?: 0,
-                    onDecrement = { homeViewModel.updateCartItemQuantity(item, (cartItem?.qty ?: 0).toInt() - 1) },
-                    onIncrement = { homeViewModel.updateCartItemQuantity(item, (cartItem?.qty ?: 0).toInt() + 1) }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "₹${item.price}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.primary
                 )
+                
+                if (!inCart) {
+                    Surface(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable { onAddToCart() },
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("+", style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
+                } else {
+                    val cartItem = homeState.cartItems.find { it.menu_item_id == item.id }
+                    QuantitySelector(
+                        quantity = cartItem?.qty?.toInt() ?: 0,
+                        onDecrement = { homeViewModel.updateCartItemQuantity(item, (cartItem?.qty ?: 0).toInt() - 1) },
+                        onIncrement = { homeViewModel.updateCartItemQuantity(item, (cartItem?.qty ?: 0).toInt() + 1) }
+                    )
+                }
             }
         }
     }

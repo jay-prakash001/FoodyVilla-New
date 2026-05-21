@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
+import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
 import com.jp.foodyvilla.presentation.utils.UiState
 import kotlinx.coroutines.launch
 
@@ -37,7 +38,8 @@ fun DetailAddScreen(
     outletId: Long,
     onBack: () -> Unit,
     onProceedToPayment: (outletId: Long) -> Unit,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    loginViewModel: LoginViewModel
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -46,6 +48,17 @@ fun DetailAddScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
     val locationState by viewModel.locationState.collectAsStateWithLifecycle()
+    val userState by loginViewModel.user.collectAsStateWithLifecycle()
+
+    // Prefill user details once they are loaded
+    LaunchedEffect(userState) {
+        if (userState is UiState.Success) {
+            val user = (userState as UiState.Success).data
+            if (orderState.customerName.isBlank()) viewModel.updateCustomerName(user.name ?: "")
+            if (orderState.phone.isBlank()) viewModel.updatePhone(user.phone ?: "")
+            if (orderState.address.isBlank()) viewModel.updateAddress(user.address ?: "")
+        }
+    }
 
     val outletItems = remember(state.cartItems, outletId) {
         state.cartItems.filter { it.outlet_id == outletId }
@@ -60,13 +73,13 @@ fun DetailAddScreen(
     val nameError = if (nameTouched && orderState.customerName.isBlank()) "Name is required" else null
     val phoneError = when {
         phoneTouched && orderState.phone.isBlank() -> "Phone number is required"
-        phoneTouched && !orderState.phone.matches(Regex("^[0-9]{10,13}$")) -> "Enter a valid phone number"
+        phoneTouched && !orderState.phone.replace("+", "").matches(Regex("^[0-9]{10,13}$")) -> "Enter a valid phone number (10-13 digits)"
         else -> null
     }
     val addressError = if (orderState.orderType == "Delivery" && addressTouched && orderState.address.isBlank()) "Address is required for delivery" else null
 
     val isFormValid = orderState.customerName.isNotBlank() 
-            && orderState.phone.matches(Regex("^[0-9]{10,13}$")) 
+            && orderState.phone.replace("+", "").matches(Regex("^[0-9]{10,13}$"))
             && (orderState.orderType != "Delivery" || orderState.address.isNotBlank())
 
     var showLocationRationale by remember { mutableStateOf(false) }
@@ -77,8 +90,8 @@ fun DetailAddScreen(
         val isGranted = permissions.values.any { it }
         if (isGranted) {
             if (viewModel.isGpsEnabled()) viewModel.fetchCurrentLocation()
+            else context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
         } else {
-            // Permission denied, maybe show a toast
             Toast.makeText(context, "Location permission is required to fetch address", Toast.LENGTH_SHORT).show()
         }
     }

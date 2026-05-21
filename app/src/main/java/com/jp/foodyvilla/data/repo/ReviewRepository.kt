@@ -23,7 +23,9 @@ class ReviewRepository(
     // ----------------------
     fun getReviews(): Flow<List<Review>> = flow {
         val result = supabase.from("reviews")
-            .select()
+            .select() {
+                order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+            }
             .decodeList<Review>()
 
         emit(result)
