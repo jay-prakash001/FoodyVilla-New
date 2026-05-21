@@ -99,7 +99,7 @@ class ReviewsViewModel(
     // SUBMIT REVIEW
     // ----------------------
 
-    fun submit(context: Context) {
+    fun submit(context: Context, productId: Long? = null) {
         viewModelScope.launch {
 
             val current = _addState.value
@@ -117,7 +117,8 @@ class ReviewsViewModel(
                         customerName = current.name,
                         desc = current.desc,
                         rating = current.rating,
-                        imageUrls = uploadedUrls
+                        imageUrls = uploadedUrls,
+                        productId = productId
                     )
                 )
 

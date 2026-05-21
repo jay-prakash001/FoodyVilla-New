@@ -202,7 +202,7 @@ fun AddReviewScreen(
 
             // 🚀 SUBMIT BUTTON
             Button(
-                onClick = { viewModel.submit(context) },
+                onClick = { viewModel.submit(context, productId) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),

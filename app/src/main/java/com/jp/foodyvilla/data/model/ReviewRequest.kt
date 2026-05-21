@@ -4,5 +4,6 @@ data class ReviewRequest(
     val customerName: String,
     val rating: Int,
     val desc: String,
-    val imageUrls: List<String>
+    val imageUrls: List<String>,
+    val productId: Long? = null
 )

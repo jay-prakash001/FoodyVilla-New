@@ -60,10 +60,11 @@ class ReviewRepository(
     suspend fun insertReview(request: ReviewRequest) {
 
         val dto = ReviewInsertDto(
-            title = request.customerName,
-            desc = request.desc,
+            user_name = request.customerName,
+            comment = request.desc,
             rating = request.rating,
-            img_url = request.imageUrls
+            img_url = request.imageUrls,
+            product_id = request.productId
         )
 
         supabase.from("reviews").insert(dto)
