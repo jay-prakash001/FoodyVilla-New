@@ -34,11 +34,17 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 val appModule = module{
-
+    val supabaseUrl = "https://qxqnwfcljizyscrqkntd.supabase.co"
+    val supabaseKey = "sb_publishable_P2vCR3YTVxyHShA8Gbb0RQ_HxXAGqZ-"
     single {
         createSupabaseClient(
-            supabaseUrl = "https://mzeajzfhjovwyuotiywx.supabase.co",
-            supabaseKey = "sb_publishable_C0Dz4fVE-_YjQIHLHqMbQQ_EWWuskzq"
+//            supabaseUrl = "https://mzeajzfhjovwyuotiywx.supabase.co",
+//            supabaseKey = "sb_publishable_C0Dz4fVE-_YjQIHLHqMbQQ_EWWuskzq"
+
+            supabaseUrl = supabaseUrl,
+            supabaseKey = supabaseKey
+
+
         ) {
             install(Auth){
                 autoLoadFromStorage  = true

@@ -177,21 +177,14 @@ private fun ReviewCard(review: Review) {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = review.userName.takeIf { !it.isNullOrBlank() } ?: "Anonymous User",
+                        text = review.user_name.takeIf { it.isNotBlank() } ?: "Anonymous User",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                     )
-                    if (!review.foodItem.isNullOrBlank()) {
-                        Text(
-                            text = review.foodItem,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
 
-                if (!review.date.isNullOrBlank()) {
+                if (review.created_at.isNotBlank()) {
                     Text(
-                        review.date,
+                        review.created_at.split("T").firstOrNull() ?: review.created_at,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -200,19 +193,13 @@ private fun ReviewCard(review: Review) {
 
             // ⭐ Rating and Title
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                StarRow(rating = review.rating, size = 14)
-                if (!review.title.isNullOrBlank()) {
-                    Text(
-                        text = review.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
+                StarRow(rating = review.rating.toDouble(), size = 14)
             }
 
             // 💬 Comment Body
-            if (!review.desc.isNullOrBlank()) {
+            if (review.comment.isNotBlank()) {
                 Text(
-                    text = review.desc,
+                    text = review.comment,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 20.sp

@@ -24,6 +24,7 @@ import coil.compose.AsyncImage
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddReviewScreen(
+    productId: Long = 0L,
     viewModel: ReviewsViewModel,
     onBack: () -> Unit
 ) {
@@ -39,7 +40,10 @@ fun AddReviewScreen(
 
     // ✅ Auto back on success
     LaunchedEffect(state.success) {
-        if (state.success) onBack()
+        if (state.success) {
+            viewModel.resetAddState()
+            onBack()
+        }
     }
 
     Scaffold(
@@ -75,12 +79,13 @@ fun AddReviewScreen(
 
                     // 👤 Name
                     OutlinedTextField(
-                        value = state.name,
+                        value = if (productId != 0L) "Product ID: $productId" else state.name,
                         onValueChange = viewModel::onNameChange,
-                        label = { Text("Customer Name") },
+                        label = { Text(if (productId != 0L) "Reviewing Product" else "Customer Name") },
                         leadingIcon = {
                             Icon(Icons.Default.Person, null)
                         },
+                        enabled = productId == 0L,
                         modifier = Modifier.fillMaxWidth()
                     )
 

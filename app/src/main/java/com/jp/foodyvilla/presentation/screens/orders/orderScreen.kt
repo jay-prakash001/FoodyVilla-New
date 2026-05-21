@@ -2,102 +2,122 @@ package com.jp.foodyvilla.presentation.screens.orders
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.data.model.order.OrderItem
 import com.jp.foodyvilla.data.model.order.OrderModel
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.utils.UiState
 
-// ─── DATA MODELS (Based on your logs) ────────────────────────────────────────
-
-
-// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderHistoryScreen(
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    onAddReview: (Long) -> Unit
 ) {
-
-
-    val orderState  = viewModel.orderHistoryState.collectAsStateWithLifecycle().value
-
+    val orderState = viewModel.orderHistoryState.collectAsStateWithLifecycle().value
 
     LaunchedEffect(Unit) {
-        if(orderState is UiState.Error){
-            viewModel.getOrderedItems()
-        }
+        viewModel.getOrderedItems()
     }
-    when(orderState){
-        is UiState.Error -> {}
 
+    when (orderState) {
         is UiState.Success -> {
-            val orders  = orderState.data
+            val orders = orderState.data
             if (orders.isEmpty()) {
                 EmptyOrdersView()
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     items(orders, key = { it.id }) { order ->
-                        OrderCard(order = order)
+                        OrderCard(
+                            order = order, 
+                            onCancel = { viewModel.cancelOrder(order) },
+                            onAddReview = onAddReview
+                        )
                     }
-
-                    item{
-                        Spacer(Modifier.height(180.dp))
-                    }
+                    item { Spacer(Modifier.height(100.dp)) }
                 }
             }
         }
-
-        else -> {
-
-            Box(modifier =  Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center){
+        is UiState.Loading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
+        else -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Failed to load orders")
+            }
+        }
     }
-
-
 }
 
-// ─── REUSABLE COMPONENTS ─────────────────────────────────────────────────────
-
 @Composable
-fun OrderCard(order: OrderModel) {
+fun OrderCard(order: OrderModel, onCancel: () -> Unit, onAddReview: (Long) -> Unit) {
+    var showCancelDialog by remember { mutableStateOf(false) }
     val totalAmount = order.order_items.sumOf { it.total_price }
     val totalQty = order.order_items.sumOf { it.qty }
 
-    ElevatedCard(
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = { Text("Cancel Order?") },
+            text = { Text("Are you sure you want to cancel this order? Please note that no refund will be given for cancellations made after the order is processed.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCancelDialog = false
+                        onCancel()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Yes, Cancel")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("Keep Order")
+                }
+            }
+        )
+    }
+
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Row 1: ID & Status
+            // Header: ID and Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -118,53 +138,62 @@ fun OrderCard(order: OrderModel) {
                 StatusBadge(status = order.status)
             }
 
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // Row 2: Order Items Summary
-            order.order_items.forEach { item ->
-                OrderItemRow(item)
-                Spacer(Modifier.height(8.dp))
-
+            // Customer Details Section
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DetailRow(icon = Icons.Default.Person, text = order.customer_name ?: "N/A")
+                    DetailRow(icon = Icons.Default.Phone, text = order.phone ?: "N/A")
+                    if (!order.address.isNullOrBlank()) {
+                        DetailRow(icon = Icons.Default.LocationOn, text = order.address)
+                    }
+                }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
+            Divider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(16.dp))
 
-            // Row 3: Meta Info (Type & Total)
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(16.dp)
+            // Order Items
+            val canReview = order.status.lowercase() == "delivered"
+            order.order_items.forEach { item ->
+                OrderItemRow(item, canReview, onAddReview)
+                Spacer(Modifier.height(8.dp))
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Total and Cancel Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OrderTypeIcon(type = order.order_type?:"N/A")
+                Column {
+                    Text("Total Amount", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    Text(
+                        text = "₹${totalAmount}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                
+                if (order.status.lowercase() == "pending" || order.status.lowercase() == "placed") {
+                    OutlinedButton(
+                        onClick = { showCancelDialog = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Cancel, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = order.order_type?:"N/A",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "$totalQty Items",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                        Text(
-                            text = "₹${totalAmount}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Text("Cancel")
                     }
                 }
             }
@@ -173,80 +202,77 @@ fun OrderCard(order: OrderModel) {
 }
 
 @Composable
-private fun OrderItemRow(item: OrderItem) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+fun DetailRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 
+@Composable
+private fun OrderItemRow(item: OrderItem, canReview: Boolean, onAddReview: (Long) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         AsyncImage(
-            item.products?.image[0],
-            contentDescription = "productImage", modifier = Modifier.size(60.dp).clip(CircleShape), contentScale = ContentScale.Crop
+            model = item.outlet_menu_items?.image?.firstOrNull() ?: "",
+            contentDescription = null,
+            modifier = Modifier.size(50.dp).clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
         )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-
+        
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "${item.products?.name} × ${item.qty}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "₹${item.total_price}",
+                text = item.outlet_menu_items?.product_catalog?.name ?: "N/A",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )
+            Text(
+                text = "Qty: ${item.qty}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
+        
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "₹${item.total_price}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (canReview) {
+                TextButton(
+                    onClick = { onAddReview(item.outlet_menu_items?.product_id ?: 0L) },
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.height(24.dp)
+                ) {
+                    Text("Add Review", style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
     }
-
 }
 
 @Composable
 private fun StatusBadge(status: String) {
-    val containerColor = when (status.uppercase()) {
-        "PLACED" -> Color(0xFFE3F2FD)
-        "DELIVERED" -> Color(0xFFE8F5E9)
-        "CANCELLED" -> Color(0xFFFFEBEE)
-        else -> MaterialTheme.colorScheme.secondaryContainer
-    }
-    val contentColor = when (status.uppercase()) {
-        "PLACED" -> Color(0xFF1976D2)
-        "DELIVERED" -> Color(0xFF2E7D32)
-        "CANCELLED" -> Color(0xFFC62828)
-        else -> MaterialTheme.colorScheme.onSecondaryContainer
+    val (containerColor, contentColor) = when (status.lowercase()) {
+        "pending", "placed" -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
+        "delivered" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+        "cancelled" -> Color(0xFFFFEBEE) to Color(0xFFC62828)
+        "processing" -> Color(0xFFFFF3E0) to Color(0xFFF57C00)
+        else -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
     }
 
-    Surface(
-        color = containerColor,
-        shape = CircleShape
-    ) {
+    Surface(color = containerColor, shape = CircleShape) {
         Text(
-            text = status,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            text = status.uppercase(),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.ExtraBold,
             color = contentColor
         )
-    }
-}
-
-@Composable
-private fun OrderTypeIcon(type: String) {
-    val (icon, color) = when (type) {
-        "Dine-In" -> Icons.Rounded.Restaurant to MaterialTheme.colorScheme.primary
-        "Pickup" -> Icons.Rounded.LocalMall to MaterialTheme.colorScheme.secondary
-        else -> Icons.Rounded.DeliveryDining to MaterialTheme.colorScheme.tertiary
-    }
-
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(color.copy(alpha = 0.1f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, null, modifier = Modifier.size(16.dp), tint = color)
     }
 }
 
@@ -256,16 +282,12 @@ private fun EmptyOrdersView() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 Icons.Rounded.History,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
+                null,
+                modifier = Modifier.size(80.dp),
                 tint = MaterialTheme.colorScheme.outlineVariant
             )
             Spacer(Modifier.height(16.dp))
-            Text(
-                "No orders yet",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.outline
-            )
+            Text("No orders found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.outline)
         }
     }
 }

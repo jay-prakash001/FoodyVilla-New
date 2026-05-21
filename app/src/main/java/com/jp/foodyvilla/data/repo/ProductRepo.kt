@@ -1,20 +1,53 @@
 package com.jp.foodyvilla.data.repo
 
-import com.jp.foodyvilla.data.model.FoodItem
-import com.jp.foodyvilla.data.model.OfferFood
+import com.jp.foodyvilla.data.model.Category
+import com.jp.foodyvilla.data.model.Outlet
+import com.jp.foodyvilla.data.model.OutletMenuItem
+import com.jp.foodyvilla.data.model.Review
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-class ProductRepo(private val client : SupabaseClient) {
 
-    fun getProducts(): Flow<List<FoodItem>> = flow {
+class ProductRepo(private val client: SupabaseClient) {
+
+    fun getOutletsWithMenu(): Flow<List<Outlet>> = flow {
         try {
             val res = client
-                .from("products")
-                .select()
-                .decodeList<FoodItem>()
+                .from("outlets")
+                .select(
+                    Columns.raw(
+                        """
+            *,
+            outlet_menu_items(
+                *,
+                product_catalog(*)
+            )
+            """.trimIndent()
+                    )
+                )
+                .decodeList<Outlet>()
 
+            println("outlets data: $res")
+            emit(res)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            println("error fetching outlets: $e")
+            emit(emptyList())
+        }
+    }
+
+    fun getCategories(): Flow<List<com.jp.foodyvilla.data.model.Category>> = flow {
+        try {
+            val res = client
+                .from("categories")
+                .select {
+                    filter {
+                        eq("is_active", true)
+                    }
+                }
+                .decodeList<com.jp.foodyvilla.data.model.Category>()
             emit(res)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -22,19 +55,66 @@ class ProductRepo(private val client : SupabaseClient) {
         }
     }
 
-    fun getProductById(id: Int): Flow<FoodItem?> = flow {
+    fun getOutletById(id: Long): Flow<Outlet?> = flow {
         try {
             val res = client
-                .from("products")
-                .select {
+                .from("outlets")
+                .select(
+                    Columns.raw(
+                        """
+                        *,
+                        menu_items:outlet_menu_items (*, product_catalog (*))
+                        """.trimIndent()
+                    )
+                ) {
                     filter {
                         eq("id", id)
                     }
                 }
-                .decodeSingleOrNull<FoodItem>()
+                .decodeSingleOrNull<Outlet>()
 
             emit(res)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(null)
+        }
+    }
+    
+    fun getProductReviews(productId: Long): Flow<List<Review>> = flow {
+        try {
+            val res = client
+                .from("reviews")
+                .select {
+                    filter {
+                        eq("product_id", productId)
+                    }
+                }
+                .decodeList<Review>()
+            emit(res)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(emptyList())
+        }
+    }
 
+    fun getProductById(id: Long): Flow<OutletMenuItem?> = flow {
+        try {
+            val res = client
+                .from("outlet_menu_items")
+                .select(
+                    Columns.raw(
+                        """
+                        *,
+                        product_catalog (*)
+                        """.trimIndent()
+                    )
+                ) {
+                    filter {
+                        eq("id", id)
+                    }
+                }
+                .decodeSingleOrNull<OutletMenuItem>()
+            emit(res)
         } catch (e: Exception) {
             e.printStackTrace()
             emit(null)

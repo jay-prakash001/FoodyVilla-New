@@ -1,12 +1,13 @@
 package com.jp.foodyvilla.presentation.screens.home
 
-import Banner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.messaging.FirebaseMessaging
+import com.jp.foodyvilla.data.model.Banner
 import com.jp.foodyvilla.data.model.Category
-import com.jp.foodyvilla.data.model.FoodItem
 import com.jp.foodyvilla.data.model.MockData
+import com.jp.foodyvilla.data.model.Outlet
+import com.jp.foodyvilla.data.model.OutletMenuItem
 import com.jp.foodyvilla.data.model.cart.CartItem
 import com.jp.foodyvilla.data.model.order.OrderModel
 import com.jp.foodyvilla.data.model.user.UserProfile
@@ -16,6 +17,7 @@ import com.jp.foodyvilla.data.repo.OfferRepo
 import com.jp.foodyvilla.data.repo.OrderRepository
 import com.jp.foodyvilla.data.repo.ProductRepo
 import com.jp.foodyvilla.presentation.utils.UiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,77 +29,33 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val isLoading: Boolean = true,
-    val allItems: List<FoodItem> = emptyList(),
+    val outlets: List<Outlet> = emptyList(),
     val categories: List<Category> = emptyList(),
     val banners: List<Banner> = emptyList(),
     val cartItems: List<CartItem> = emptyList(),
-    val selectedCategory: String = "",
+    val selectedCategory: Long = -1L,
     val searchQuery: String = "",
     val errorMessage: String? = null
 ) {
-    val bestSellers: List<FoodItem>
-        get() = allItems.filter { it.isBestSeller }
+    val allItems: List<OutletMenuItem>
+        get() = outlets.flatMap { it.outlet_menu_items ?: emptyList() }
 
-
-    val filteredBestSellersItems: List<FoodItem>
-        get() {
-            val query = searchQuery.trim()
-
-            return allItems.filter { it.isBestSeller }.filter { item ->
-
-                val matchesSearch =
-                    query.isBlank() ||
-                            item.name.contains(query, true) ||
-                            item.description.contains(query, true) ||
-                            item.category.contains(query, true) ||
-                            item.prepTime.contains(query, true) ||
-                            item.price.toString().contains(query) ||
-                            item.rating.toString().contains(query) ||
-                            (query.equals("veg", true) && item.isVeg) ||
-                            (query.equals("vegan", true) && item.isVegan)
-
-                val matchesCategory =
-                    selectedCategory == "all" ||
-                            item.category.equals(selectedCategory, true) ||
-                            // 🔥 ALSO allow category match via search
-                            item.name.contains(selectedCategory, true) ||
-                            item.description.contains(selectedCategory, true)
-
-                matchesSearch && matchesCategory
-            }
-        }
-    val filteredItems: List<FoodItem>
+    val filteredItems: List<OutletMenuItem>
         get() {
             val query = searchQuery.trim()
 
             return allItems.filter { item ->
+                val matchesSearch = query.isBlank() ||
+                        item.product_catalog?.name?.contains(query, true) == true ||
+                        item.product_catalog?.description?.contains(query, true) == true
 
-                val matchesSearch =
-                    query.isBlank() ||
-                            item.name.contains(query, true) ||
-                            item.description.contains(query, true) ||
-                            item.category.contains(query, true) ||
-                            item.prepTime.contains(query, true) ||
-                            item.price.toString().contains(query) ||
-                            item.rating.toString().contains(query) ||
-                            (query.equals("veg", true) && item.isVeg) ||
-                            (query.equals("vegan", true) && item.isVegan)
-
-                val matchesCategory =
-                    selectedCategory == "all" ||
-                            item.category.equals(selectedCategory, true) ||
-                            // 🔥 ALSO allow category match via search
-                            item.name.contains(selectedCategory, true) ||
-                            item.description.contains(selectedCategory, true)
+                val matchesCategory = selectedCategory == -1L ||
+                        item.product_catalog?.category_id == selectedCategory
 
                 matchesSearch && matchesCategory
             }
         }
-
-    val popularItems: List<FoodItem>
-        get() = allItems.filter { !it.isBestSeller }
 }
-
 
 data class OrderUiState(
     val customerName: String = "",
@@ -115,9 +73,7 @@ class HomeViewModel(
     private val cartRepository: CartRepository,
     private val orderRepository: OrderRepository,
     private val locationRepository: LocationRepository
-) :
-    ViewModel() {
-
+) : ViewModel() {
 
     private val _selectedPage = MutableStateFlow(0)
     val selectedPage = _selectedPage.asStateFlow()
@@ -127,7 +83,6 @@ class HomeViewModel(
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
 
     private val _orderState = MutableStateFlow(OrderUiState())
     val orderState: StateFlow<OrderUiState> = _orderState
@@ -166,408 +121,261 @@ class HomeViewModel(
         }
     }
 
-    private val _locationState =
-        MutableStateFlow<UiState<Pair<Double, Double>>>(UiState.Idle)
-
+    private val _locationState = MutableStateFlow<UiState<Pair<Double, Double>>>(UiState.Idle)
     val locationState = _locationState.asStateFlow()
 
     fun fetchCurrentLocation() {
-
         viewModelScope.launch {
-
             _locationState.value = UiState.Loading
-
             val result = locationRepository.fetchLocation()
-
-            println("Location fetch $result")
             result.onSuccess { location ->
-
                 _locationState.value = UiState.Success(location)
-                val addressResult =
-                    locationRepository.getAddressFromLocation(
-                        latitude = location.first,
-                        longitude = location.second
-                    )
-
-                println("Location address fetch $addressResult")
-
-
+                val addressResult = locationRepository.getAddressFromLocation(
+                    latitude = location.first,
+                    longitude = location.second
+                )
                 val address = addressResult.getOrNull() ?: ""
                 _orderState.update { state ->
-
-
                     state.copy(address = address, lat = location.first, long = location.second)
-
-
                 }
             }
-
             result.onFailure { exception ->
-
-                _locationState.value =
-                    UiState.Error(
-                        Exception(exception)
-                    )
+                _locationState.value = UiState.Error(Exception(exception))
             }
         }
     }
-    fun hasLocationPermission(): Boolean {
-        return locationRepository.hasLocationPermission()
-    }
 
-    fun isGpsEnabled(): Boolean {
-        return locationRepository.isGpsEnabled()
-    }
+    fun hasLocationPermission(): Boolean = locationRepository.hasLocationPermission()
+    fun hasNotificationPermission(): Boolean = locationRepository.hasNotificationPermission()
+    fun isGpsEnabled(): Boolean = locationRepository.isGpsEnabled()
+    
     val fcm = FirebaseMessaging.getInstance()
-
 
     init {
         loadData()
         fcm.subscribeToTopic("offers")
-        fcm.token
-            .addOnSuccessListener { token ->
-                println("FCM Token: $token")
-            }
-            .addOnFailureListener {
-                println("Failed to get FCM token")
-            }
-
+        fcm.subscribeToTopic("banners")
     }
-
 
     private val _orderHistoryState = MutableStateFlow<UiState<List<OrderModel>>>(UiState.Idle)
     val orderHistoryState = _orderHistoryState.asStateFlow()
-    fun getOrderedItems() {
-        viewModelScope.launch {
-            orderRepository.observeOrders().collectLatest {
-                println("orders : $it")
-                _orderHistoryState.value = it
-            }
+    private var orderListenerJob: Job? = null
 
+    fun getOrderedItems() {
+        if (orderListenerJob != null && orderListenerJob?.isActive == true) return
+        orderListenerJob = viewModelScope.launch {
+            orderRepository.observeOrders().collectLatest {
+                _orderHistoryState.value = it
+                if (it is UiState.Success) {
+                    updatePurchasedProducts(it.data)
+                }
+            }
         }
     }
 
     fun getCartItems() {
         viewModelScope.launch {
             cartRepository.getCartItems().collectLatest { res ->
-
-                println(" cart items : $res")
                 if (res is UiState.Success) {
-                    _uiState.value = _uiState.value.copy(cartItems = res.data)
-
+                    _uiState.update { it.copy(cartItems = res.data) }
+                    // Re-calculate orders that can be reviewed
                 }
             }
         }
+    }
+
+    private val _purchasedProductIds = MutableStateFlow<Set<Long>>(emptySet())
+    val purchasedProductIds = _purchasedProductIds.asStateFlow()
+
+    private fun updatePurchasedProducts(orders: List<OrderModel>) {
+        val ids = orders
+            .filter { it.status.lowercase() == "delivered" }
+            .flatMap { it.order_items }
+            .map { it.menu_item_id }
+            .toSet()
+        _purchasedProductIds.value = ids
     }
 
     private fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            offerRepo.getBanners().collect { items ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        banners = items,
-                        categories = MockData.categories
-                    )
+            
+            // Launch parallel data loading
+            launch {
+                offerRepo.getBanners().collect { items ->
+                    _uiState.update { it.copy(banners = items) }
+                }
+            }
+            
+            launch {
+                productRepo.getCategories().collect { cats ->
+                    // Add "All" category at the beginning
+                    // Create a dummy category for "All" with ID -1
+                    val allCategory = Category(id = -1L, name = "All", emoji = "🍽️")
+                    _uiState.update { it.copy(categories = listOf(allCategory) + cats) }
                 }
             }
 
-            getProduct()
+            getOutlets()
             getCartItems()
-            getOrderedItems()
         }
     }
 
-    fun getCurrentLocation(): Flow<UiState<Pair<Double, Double>>> = flow {
-        emit(UiState.Loading)
-
-        try {
-            val location = locationRepository.getCurrentLocation()
-
-            if (location != null) {
-                emit(UiState.Success(location))
-            } else {
-                emit(UiState.Error(Exception("Location not available")))
-            }
-
-        } catch (e: Exception) {
-            emit(UiState.Error(e))
-        }
-    }
-
-
-    // ─────────────────────────────────────────
-// 🚀 PLACE ORDER
-// ─────────────────────────────────────────
-
-
-    private val _paymentState = MutableStateFlow<UiState<Boolean>>(UiState.Idle)
+    // 🚀 PLACE ORDER & PAYMENT
+    private val _paymentState = MutableStateFlow<UiState<String>>(UiState.Idle)
     val paymentState = _paymentState.asStateFlow()
-    fun onPaymentSuccess(
-        razorpayPaymentId: String,
-        razorpayOrderId: String,
-        razorpaySignature: String
-    ) {
-        viewModelScope.launch {
-
-
-            println("Payment Success $razorpayPaymentId  $razorpaySignature  $razorpayOrderId")
-            // TODO: Save transaction to your DB / backend here
-//            _uiState.value = CheckoutUiState.PaymentSuccess(
-//                PaymentResult(
-//                    razorpayPaymentId = razorpayPaymentId,
-//                    razorpayOrderId = razorpayOrderId,
-//                    razorpaySignature = razorpaySignature,
-//                    productOrder = order,
-//                    status = PaymentStatus.SUCCESS
-//                )
-//            )
-//            pendingOrder = null
-
-            println("razorpayPaymentId $razorpayPaymentId")
-            println("razorpayPaymentId $razorpayPaymentId")
-            println("razorpayPaymentId $razorpayPaymentId")
-            placeOrder(transactionId = razorpayPaymentId)
-        }
+    private var pendingOutletId: Long? = null
+    private var lastProcessedPaymentId: String? = null
+    
+    fun setPendingOutletId(id: Long) {
+        pendingOutletId = id
+        _paymentState.value = UiState.Idle
+    }
+    
+    fun resetPaymentState() {
+        _paymentState.value = UiState.Idle
     }
 
+    fun onPaymentSuccess(
+        razorpayPaymentId: String?,
+        razorpayOrderId: String?,
+        razorpaySignature: String?
+    ) {
+        if (razorpayPaymentId != null && razorpayPaymentId == lastProcessedPaymentId) return
+        lastProcessedPaymentId = razorpayPaymentId
+
+        viewModelScope.launch {
+            _paymentState.value = UiState.Loading
+            pendingOutletId?.let { outletId ->
+                orderRepository.placeOrder(
+                    outletId = outletId,
+                    cartItems = uiState.value.cartItems,
+                    address = _orderState.value.address,
+                    phone = _orderState.value.phone,
+                    customerName = _orderState.value.customerName,
+                    instruction = _orderState.value.instructions,
+                    orderType = _orderState.value.orderType,
+                    transactionId = razorpayPaymentId,
+                    lat = _orderState.value.lat,
+                    long = _orderState.value.long
+                ).collectLatest { state ->
+                    when (state) {
+                        is UiState.Success -> {
+                            val orderId = state.data
+                            val amount = uiState.value.cartItems
+                                .filter { it.outlet_id == outletId }
+                                .sumOf { it.totalPrice }
+                                
+                            orderRepository.savePayment(
+                                orderId = orderId,
+                                razorpayOrderId = razorpayOrderId,
+                                razorpayPaymentId = razorpayPaymentId,
+                                razorpaySignature = razorpaySignature,
+                                amount = (amount * 100).toLong(),
+                                status = "captured"
+                            ).collectLatest { }
+
+                            getCartItems()
+                            _paymentState.value = UiState.Success("Order placed successfully")
+                            getOrderedItems()
+                        }
+                        is UiState.Error -> {
+                            _paymentState.value = state
+                            lastProcessedPaymentId = null
+                        }
+                        else -> {}
+                    }
+                }
+            }
+            pendingOutletId = null
+        }
+    }
 
     fun onPaymentError(errorCode: Int, errorDescription: String) {
-
-        println("Payment Error $errorCode  $errorDescription ")
-
-
-//        _uiState.value = CheckoutUiState.PaymentFailed(errorCode, errorDescription)
-//        pendingOrder = null
-
-
+        _paymentState.value = UiState.Error(Exception(errorDescription), errorDescription)
+        pendingOutletId = null
     }
 
-
-    fun placeOrder(
-        transactionId: String
-    ) {
-        val cartItems = _uiState.value.cartItems
-
-
-        println("Place order called with transactionId $transactionId 1")
-        if (cartItems.isEmpty()) {
-//            _uiState.update { it.copy(orderError = "Cart is empty") }
-            return
-        }
-
-        viewModelScope.launch {
-
-//            getCurrentLocation().collectLatest {
-////                println("Location $it")
-//                if (it is UiState.Success) {
-            orderRepository.placeOrder(
-                cartItems = cartItems,
-                address = _orderState.value.address,
-                phone = _orderState.value.phone,
-                customerName = _orderState.value.customerName,
-                instruction = _orderState.value.instructions,
-                orderType = _orderState.value.orderType,
-                transactionId = transactionId,
-//                        lat = it.data.first,
-//                        long = it.data.second
-            ).collectLatest { state ->
-
-                println("Order Place State $state")
-                when (state) {
-                    is UiState.Loading -> {
-//                        _uiState.update {
-//                            it.copy(
-//                                isPlacingOrder = true,
-//                                orderError = null,
-//                                orderSuccess = null
-//                            )
-//                        }
-                    }
-
-                    is UiState.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                cartItems = emptyList()
-                            )
-                        }
-                    }
-
-                    is UiState.Error -> {
-                        _uiState.update {
-                            it.copy(
-//                                isPlacingOrder = false,
-//                                orderError = state.exception.message ?: "Order failed"
-                            )
-                        }
-                    }
-
-//
-                    else -> {}
-                }
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────
-// 🧹 CLEAR ORDER STATE (call after showing snackbar/dialog)
-// ─────────────────────────────────────────
-    fun clearOrderState() {
-//        _uiState.update {
-////            it.copy(
-////                orderSuccess = null,
-////                orderError = null
-////            )
-//        }
-    }
-
-    fun updateCartItemQuantity(item: FoodItem, quantity: Int = 1) {
-
+    fun updateCartItemQuantity(item: OutletMenuItem, quantity: Int = 1) {
         if (quantity == 0) {
             _uiState.update { state ->
-                state.copy(
-                    cartItems = state.cartItems.filter { it.product_id != item.id }
-                )
+                state.copy(cartItems = state.cartItems.filter { it.menu_item_id != item.id })
             }
         } else {
             _uiState.update { state ->
-
-                val exists = state.cartItems.any { it.product_id == item.id }
-
+                val exists = state.cartItems.any { it.menu_item_id == item.id }
                 val updatedList = if (exists) {
                     state.cartItems.map {
-                        if (it.product_id == item.id) {
-                            it.copy(qty = quantity) // ✅ update in place
-                        } else it
+                        if (it.menu_item_id == item.id) it.copy(qty = quantity.toLong()) else it
                     }
                 } else {
+                    val outlet = state.outlets.find { it.id == item.outlet_id }
                     state.cartItems + CartItem(
-                        id = item.id,
-                        products = item,
-                        qty = quantity,
+                        id = 0,
+                        outlet_menu_items = item,
+                        qty = quantity.toLong(),
                         customer_id = 0,
-                        product_id = item.id
+                        menu_item_id = item.id,
+                        outlet_id = item.outlet_id,
+                        outlets = outlet
                     )
                 }
-
                 state.copy(cartItems = updatedList)
             }
         }
 
         viewModelScope.launch {
-            cartRepository.addToCart(item.id, quantity).collectLatest {
-                println("update cart $it")
-            }
+            cartRepository.addToCart(item.id, item.outlet_id, quantity).collectLatest { }
         }
     }
 
-    fun updateCartItemQuantity0(item: FoodItem, quantity: Int = 1) {
-        if (quantity == 0) {
-            _uiState.update { it ->
-                it.copy(cartItems = it.cartItems.filter { it.product_id != item.id })
-            }
-        } else {
-            _uiState.update {
-                it.copy(cartItems = it.cartItems.filter { it.product_id != item.id } + CartItem(
-                    id = item.id,
-                    products = item,
-                    qty = quantity,
-                    customer_id = 0,
-                    product_id = item.id
-                ))
-            }
-        }
-
+    fun removeFromCart(menuItemId: Long) {
         viewModelScope.launch {
-            cartRepository.addToCart(item.id, quantity).collectLatest {
-                println("update cart $it")
-            }
-        }
-
-
-    }
-
-    fun getTotalCartValue(): Double {
-        return uiState.value.cartItems.sumOf { it.totalPrice ?: 0.0 }
-    }
-
-    fun removeFromCart(itemId: Int) {
-        viewModelScope.launch {
-            cartRepository.addToCart(itemId, 0).collectLatest { res ->
-                println("update cart $res")
-                if (res is UiState.Success) {
-                    _uiState.update {
-                        it.copy(cartItems = it.cartItems.filter { it.products?.id != itemId })
+            val item = _uiState.value.cartItems.find { it.menu_item_id == menuItemId }
+            if (item != null) {
+                cartRepository.addToCart(menuItemId, item.outlet_id, 0).collectLatest { res ->
+                    if (res is UiState.Success) {
+                        _uiState.update {
+                            it.copy(cartItems = it.cartItems.filter { it.menu_item_id != menuItemId })
+                        }
                     }
                 }
             }
         }
-
-
     }
 
-
-    fun generateWhatsAppMessage(
-        state: HomeUiState,
-        name: String,
-        phone: String,
-        address: String,
-        type: String,
-        instructions: String
-    ): String {
-
-//        val orderId = System.currentTimeMillis().toString().takeLast(6)
-//
-//        val itemsText = state.cartItems.joinToString("\n") {
-//            "${it.foodItem.name} x${it.quantity} = ₹${"%.2f".format(it.foodItem.price * it.quantity)}"
-//        }
-//
-//        val total = state.cartItems.sumOf {
-//            it.foodItem.price * it.quantity
-//        }
-
-        return """
-🧾 *New Order*
-
-📦 Order ID: orderId
-👤 Name: $name
-📞 Phone: $phone
-🍽 Type: $type
-
-📍 Address: ${if (type == "Delivery") address else "N/A"}
-
-🛒 *Items:*
-itemsText
-
-💰 *Total: *
-
-📝 Instructions:
-$instructions
-""".trimIndent()
-    }
-
-    fun getProduct() {
+    fun getOutlets() {
         viewModelScope.launch {
             try {
-                productRepo.getProducts().collect { items ->
-
-                    println("Items : $items")
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            allItems = items
-                        )
-                    }
+                productRepo.getOutletsWithMenu().collect { items ->
+                    _uiState.update { it.copy(isLoading = false, outlets = items) }
                 }
+            } catch (e: Exception) { }
+        }
+    }
 
-            } catch (e: Exception) {
-
+    fun cancelOrder(order: OrderModel) {
+        viewModelScope.launch {
+            val productNames = order.order_items.map { 
+                "${it.outlet_menu_items?.product_catalog?.name} x ${it.qty}" 
+            }
+            val imageUrl = order.order_items.firstOrNull()?.outlet_menu_items?.image?.firstOrNull()
+            
+            orderRepository.cancelOrder(
+                orderId = order.id,
+                outletId = order.outlet_id,
+                customerName = order.customer_name ?: "Customer",
+                productNames = productNames,
+                imageUrl = imageUrl
+            ).collectLatest { state ->
+                if (state is UiState.Success) {
+                    getOrderedItems()
+                }
             }
         }
     }
 
-    fun selectCategory(categoryId: String) {
+    fun selectCategory(categoryId: Long) {
         _uiState.update { it.copy(selectedCategory = categoryId) }
     }
 

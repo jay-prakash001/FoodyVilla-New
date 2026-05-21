@@ -4,6 +4,10 @@ package com.jp.foodyvilla.presentation.screens
 // Compose UI
 
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -17,16 +21,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,29 +29,15 @@ import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Person3
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.SupportAgent
-import androidx.compose.material3.Badge
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,10 +45,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.airbnb.lottie.compose.LottieAnimation
-import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.animateLottieCompositionAsState
-import com.airbnb.lottie.compose.rememberLottieComposition
+import com.airbnb.lottie.compose.*
 import com.jp.foodyvilla.R
 import com.jp.foodyvilla.presentation.components.FoodyVillaNavBar
 import com.jp.foodyvilla.presentation.navigation.Screen
@@ -77,7 +55,6 @@ import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
 import com.jp.foodyvilla.presentation.screens.orders.OrderHistoryScreen
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
-import com.jp.foodyvilla.presentation.utils.HideSystemBars
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,9 +64,22 @@ fun MainScreen(
     navController: NavController,
     viewModel: HomeViewModel = koinViewModel()
 ) {
+    val context = LocalContext.current
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        // Handle result if needed
+    }
 
     LaunchedEffect(Unit) {
         viewModel.getCartItems()
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!viewModel.hasNotificationPermission()) {
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
     val selectedPage = viewModel.selectedPage.collectAsStateWithLifecycle().value
     val homeState = viewModel.uiState.collectAsStateWithLifecycle().value
@@ -170,7 +160,7 @@ fun MainScreen(
                     cartItemCount = homeState.cartItems.size,
                     totalPrice = homeState.cartItems.sumOf { it.totalPrice ?: 0.0 },
                     homeState.cartItems.mapNotNull {
-                        it.products?.image?.firstOrNull()
+                        it.outlet_menu_items?.image?.firstOrNull()
                     }
                 ) {
                     navController.navigate(Screen.Cart)
@@ -207,16 +197,17 @@ fun MainScreen(
                 })
 
                 1 -> MenuScreen(
-                    navController = navController,
                     viewModel = viewModel,
                     onItemClick = { navController.navigate(Screen.Detail(it)) })
 
                 2 -> OffersScreen()
                 3 -> ReviewsScreen() {
-                    navController.navigate(Screen.AddReviews)
+                    navController.navigate(Screen.AddReviews())
                 }
 
-                4 -> OrderHistoryScreen(viewModel = viewModel )
+                4 -> OrderHistoryScreen(viewModel = viewModel) { productId ->
+                     navController.navigate(Screen.AddReviews(productId))
+                }
                 else -> HomeScreen({ itemId ->
                     navController.navigate(Screen.Detail(itemId))
                 }, viewModel = viewModel, onMenuClick = {

@@ -58,13 +58,12 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
     override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
        println("Success Payment $razorpayPaymentId")
-
         println("Success Data $paymentData")
 
         viewModel.onPaymentSuccess(
-            razorpayPaymentId = razorpayPaymentId ?: "",
-            razorpayOrderId = paymentData?.orderId ?: "",
-            razorpaySignature = paymentData?.signature ?: ""
+            razorpayPaymentId = razorpayPaymentId,
+            razorpayOrderId = paymentData?.orderId,
+            razorpaySignature = paymentData?.signature
         )
     }
 

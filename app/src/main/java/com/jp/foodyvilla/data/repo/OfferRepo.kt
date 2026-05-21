@@ -1,6 +1,6 @@
 package com.jp.foodyvilla.data.repo
 
-import Banner
+import com.jp.foodyvilla.data.model.Banner
 import com.jp.foodyvilla.data.model.OfferFood
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -31,6 +31,7 @@ class OfferRepo(private val client : SupabaseClient) {
                 .decodeList<Banner>()
 
             emit(res)
+            println("BAnners res $res")
         } catch (e: Exception) {
             e.printStackTrace()
             emit(emptyList())

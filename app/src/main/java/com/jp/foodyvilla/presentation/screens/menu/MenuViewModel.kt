@@ -54,13 +54,13 @@ class MenuViewModel(private val foodRepository: ProductRepo) : ViewModel() {
     val uiState: StateFlow<MenuUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            foodRepository.getProducts().collect { items ->
-                _uiState.update {
-                    it.copy(isLoading = false, allItems = items, categories = MockData.categories)
-                }
-            }
-        }
+//        viewModelScope.launch {
+//            foodRepository.getProducts().collect { items ->
+//                _uiState.update {
+//                    it.copy(isLoading = false, allItems = items, categories = MockData.categories)
+//                }
+//            }
+//        }
     }
 
     fun onSearchQueryChange(query: String) {

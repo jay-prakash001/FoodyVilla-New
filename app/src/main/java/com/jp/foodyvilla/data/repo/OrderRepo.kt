@@ -7,35 +7,30 @@ import com.jp.foodyvilla.presentation.utils.UiState
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import com.jp.foodyvilla.data.model.fcm.NotifyOutletRequest
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import io.github.jan.supabase.postgrest.query.Columns
 
 class OrderRepository(
     private val supabase: SupabaseClient
 ) {
 
-    // 🔐 Get customer_id from token
-    private suspend fun getCustomerId(): Int? {
+    private suspend fun getCustomerId(): Long? {
         val authId = supabase.auth.currentUserOrNull()?.id ?: return null
-
         val user = supabase.postgrest["users"]
-            .select {
-                filter { eq("auth_user_id", authId) }
-            }
+            .select { filter { eq("auth_user_id", authId) } }
             .decodeSingleOrNull<UserProfile>()
-
-        return user?.id
+        return user?.id?.toLong()
     }
 
-    // 🚀 PLACE ORDER
     fun placeOrder(
+        outletId: Long,
         cartItems: List<CartItem>,
         address: String,
         phone: String,
@@ -46,149 +41,176 @@ class OrderRepository(
         orderType: String? = null,
         transactionId: String? = null
     ): Flow<UiState<String>> = flow {
-
         emit(UiState.Loading)
-
         try {
-            val customerId = getCustomerId()
-                ?: throw Exception("User not found")
+            val customerId = getCustomerId() ?: throw Exception("User not found")
+
+            // 1. Create Order
+            val orderInsertData = OrderInsert(
+                outlet_id = outletId,
+                customer_id = customerId,
+                customer_name = customerName,
+                phone = phone,
+                status = "pending",
+                order_type = orderType?.lowercase(),
+                address = address,
+                delivery_lat = lat,
+                delivery_long = long,
+                instruction = instruction,
+                transaction_id = transactionId
+            )
 
             val order = supabase.postgrest["orders"]
-                .insert(
-                    OrderInsert(
-                        customer_id = customerId,
-                        status = "PLACED",
-                        address = address,
-                        phone = phone,
-                        customer_name = customerName,
-                        order_type = orderType,
-                        instruction = instruction,
-                        transaction_id = transactionId,
-                        delivery_lat = lat,
-                        delivery_long = long
-                    )
-                ) { select() }
+                .insert(orderInsertData) { select() }
                 .decodeSingle<OrderModel>()
 
-            val orderItems = cartItems.map {
+            // 2. Create Order Items
+            val orderItems = cartItems.filter { it.outlet_id == outletId }.map {
                 OrderItemInsert(
                     order_id = order.id,
-                    productid = it.product_id,
-                    qty = it.qty ?: 1,
-                    price_per_item = it.products?.price ?: 0.0,
-                    total_price = (it.products?.price ?: 0.0) * (it.qty ?: 1),
-                    total_discount = 0.0
+                    menu_item_id = it.menu_item_id,
+                    qty = it.qty,
+                    price_per_item = it.outlet_menu_items?.price ?: 0.0,
+                    total_price = it.totalPrice
                 )
             }
 
             supabase.postgrest["order_items"].insert(orderItems)
 
-            supabase.postgrest["cart"]
-                .delete { filter { eq("customer_id", customerId) } }
+            // 3. Clear Cart for this outlet
+            supabase.postgrest["cart"].delete {
+                filter {
+                    eq("customer_id", customerId)
+                    eq("outlet_id", outletId)
+                }
+            }
 
             emit(UiState.Success(order.id))
 
+            // 4. Notify Outlet
+            try {
+                val notifyRequest = NotifyOutletRequest(
+                    outletId = outletId,
+                    title = "New Order Received from $customerName",
+                    description = cartItems.filter { it.outlet_id == outletId }.map {
+                        "${it.outlet_menu_items?.product_catalog?.name} x ${it.qty}"
+                    },
+                    imageUrl = cartItems.firstOrNull { it.outlet_id == outletId }?.outlet_menu_items?.image?.firstOrNull()
+                )
+                supabase.functions.invoke("notify_outlet", notifyRequest)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Don't fail the whole order if notification fails
+            }
         } catch (e: Exception) {
+            e.printStackTrace()
             emit(UiState.Error(Exception(e.message ?: "Order failed")))
         }
     }
 
-    // ===========================
-    // 🔥 REALTIME ORDERS (FIXED)
-    // ===========================
-    fun observeOrders(): Flow<UiState<List<OrderModel>>> = callbackFlow {
+    fun savePayment(
+        orderId: String,
+        razorpayOrderId: String?,
+        razorpayPaymentId: String?,
+        razorpaySignature: String?,
+        amount: Long,
+        status: String,
+        method: String? = null,
+        errorCode: String? = null,
+        errorDescription: String? = null,
+        razorpayResponse: String? = null
+    ): Flow<UiState<Boolean>> = flow {
+        try {
+            val customerId = getCustomerId() ?: throw Exception("User not found")
+            val paymentData = PaymentInsert(
+                order_id = orderId,
+                customer_id = customerId,
+                razorpay_order_id = razorpayOrderId,
+                razorpay_payment_id = razorpayPaymentId,
+                razorpay_signature = razorpaySignature,
+                amount = amount,
+                amount_due = 0,
+                amount_refunded = 0,
+                payment_status = status,
+                payment_method = method,
+                currency = "INR",
+                error_code = errorCode,
+                error_description = errorDescription,
+                razorpay_response = razorpayResponse
+            )
 
-        val authId = supabase.auth.currentUserOrNull()?.id
-        if (authId == null) {
-            trySend(UiState.Error())
-            close()
-            return@callbackFlow
+            supabase.postgrest["payments"].insert(paymentData)
+            emit(UiState.Success(true))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emit(UiState.Error(e))
         }
+    }
 
-        val user = supabase.postgrest["users"]
-            .select { filter { eq("auth_user_id", authId) } }
-            .decodeSingleOrNull<UserProfile>()
+    fun cancelOrder(orderId: String, outletId: Long, customerName: String, productNames: List<String>, imageUrl: String?): Flow<UiState<String>> = flow {
+        emit(UiState.Loading)
+        try {
+            supabase.postgrest["orders"]
+                .update(mapOf("status" to "cancelled")) {
+                    filter { eq("id", orderId) }
+                }
+            emit(UiState.Success("Order cancelled"))
 
-        val customerId = user?.id
-        if (customerId == null) {
-            trySend(UiState.Error())
-            close()
-            return@callbackFlow
+            // Notify Outlet of Cancellation
+            try {
+                val notifyRequest = NotifyOutletRequest(
+                    outletId = outletId,
+                    title = "Order Cancelled by $customerName",
+                    description = productNames,
+                    imageUrl = imageUrl
+                )
+                supabase.functions.invoke("notify_outlet", notifyRequest)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } catch (e: Exception) {
+            emit(UiState.Error(e))
         }
+    }
 
-        val channel = supabase.realtime.channel("orders-channel")
+    fun observeOrders(): Flow<UiState<List<OrderModel>>> = flow {
+        val customerId = getCustomerId() ?: return@flow
+        emit(UiState.Loading)
 
-        // ✅ Attach listener BEFORE subscribe
-        val job = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
-            table = "orders"
-        }.onEach {
-            val orders = supabase.postgrest["orders"]
-                .select {
+        // 1. Initial fetch
+        val initialOrders = try {
+            supabase.postgrest["orders"]
+                .select(Columns.raw("*, order_items(*, outlet_menu_items(*, product_catalog(*))), outlets(*)")) {
                     filter { eq("customer_id", customerId) }
                     order("created_at", Order.DESCENDING)
                 }
                 .decodeList<OrderModel>()
-
-            trySend(UiState.Success(orders))
-        }.launchIn(this)
-
-        channel.subscribe()
-
-        // ✅ Initial load
-
-        val initial = supabase.postgrest["orders"]
-            .select(
-                Columns.raw(
-                    "*, order_items(*, products(name, image))"
-                )
-            ) {
-                filter { eq("customer_id", customerId) }
-                order("created_at", Order.DESCENDING)
-            }
-            .decodeList<OrderModel>()
-
-        trySend(UiState.Success(initial))
-
-        awaitClose {
-            job.cancel()
-            launch {
-                channel.unsubscribe()
-                supabase.realtime.removeChannel(channel)
-            }
+        } catch (e: Exception) {
+            emit(UiState.Error(e))
+            return@flow
         }
-    }
+        emit(UiState.Success(initialOrders))
 
-    // ===================================
-    // 🔥 REALTIME ORDER ITEMS (FIXED)
-    // ===================================
-    fun observeOrderItems(orderId: String): Flow<List<OrderItem>> = callbackFlow {
-
-        val channel = supabase.realtime.channel("order-items-$orderId")
-
-        val job = channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
-            table = "order_items"
-        }.onEach {
-            val items = supabase.postgrest["order_items"]
-                .select { filter { eq("order_id", orderId) } }
-                .decodeList<OrderItem>()
-
-            trySend(items)
-        }.launchIn(this)
+        // 2. Realtime listener
+        val channel = supabase.realtime.channel("orders_channel")
+        val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+            table = "orders"
+        }
 
         channel.subscribe()
 
-        // ✅ Initial load
-        val initial = supabase.postgrest["order_items"]
-            .select { filter { eq("order_id", orderId) } }
-            .decodeList<OrderItem>()
-
-        trySend(initial)
-
-        awaitClose {
-            job.cancel()
-            launch {
-                channel.unsubscribe()
-                supabase.realtime.removeChannel(channel)
+        // Combine initial fetch with real-time changes
+        changeFlow.collect { action ->
+            try {
+                val updatedOrders = supabase.postgrest["orders"]
+                    .select(Columns.raw("*, order_items(*, outlet_menu_items(*, product_catalog(*))), outlets(*)")) {
+                        filter { eq("customer_id", customerId) }
+                        order("created_at", Order.DESCENDING)
+                    }
+                    .decodeList<OrderModel>()
+                emit(UiState.Success(updatedOrders))
+            } catch (e: Exception) {
+                // Ignore errors during re-fetch to keep the stream alive
             }
         }
     }

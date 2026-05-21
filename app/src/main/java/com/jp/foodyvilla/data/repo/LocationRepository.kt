@@ -48,6 +48,17 @@ class LocationRepository(private val context: Context) {
                 ) == PermissionChecker.PERMISSION_GRANTED
     }
 
+    fun hasNotificationPermission(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PermissionChecker.PERMISSION_GRANTED
+        } else {
+            true // Automatic on older versions
+        }
+    }
+
     fun isGpsEnabled(): Boolean {
 
         val locationManager =

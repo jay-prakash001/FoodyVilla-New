@@ -89,123 +89,12 @@ import org.json.JSONObject
 fun CartScreen(
     onBack: () -> Unit,
     onBrowseMenu: () -> Unit,
+    onCheckoutOutlet: (Long) -> Unit, // New navigation callback
     viewModel: HomeViewModel,
     loginViewModel: LoginViewModel
 ) {
-
     val context = LocalContext.current
-    val user = loginViewModel.user.collectAsStateWithLifecycle().value
-
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(Unit) {
-        viewModel.getCartItems()
-    }
-    LaunchedEffect(user) {
-        if(user is UiState.Success){
-            viewModel.updateCustomerDetailsForOrder(user = user.data)
-
-        }
-    }
-    val locationState by viewModel.locationState.collectAsStateWithLifecycle()
-
-    var isSaving by remember { mutableStateOf(false) }
-    var isFetchingLocation by remember { mutableStateOf(false) }
-    var showLogoutDialog by remember { mutableStateOf(false) }
-    var showGpsDialog by remember { mutableStateOf(false) }
-
-
-    when (val state = locationState) {
-
-        is UiState.Success -> {
-
-            isFetchingLocation = false
-        }
-
-        is UiState.Error -> {
-
-            isFetchingLocation = false
-            Toast.makeText(context, (locationState as UiState.Error).msg, Toast.LENGTH_SHORT).show()
-
-        }
-
-        is UiState.Loading -> {
-
-            isFetchingLocation = true
-        }
-
-        else -> {
-            isFetchingLocation = false
-        }
-    }
-
-    // Permission Launcher
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions.values.any { it }
-        if (granted) {
-            if (viewModel.isGpsEnabled()) {
-
-                isFetchingLocation = true
-
-                viewModel.fetchCurrentLocation()
-            } else {
-                showGpsDialog = true
-            }
-        } else {
-            scope.launch { snackbarHostState.showSnackbar("Location permission required.") }
-
-
-            val intent = Intent(
-                Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-            ).apply {
-                data = Uri.fromParts(
-                    "package",
-                    context.packageName,
-                    null
-                )
-            }
-
-            context.startActivity(intent)
-        }
-    }
-    LaunchedEffect(Unit) {
-        permissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
-    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val orderState by viewModel.orderState.collectAsStateWithLifecycle()
-//    var customerName by remember { mutableStateOf("") }
-//    var phone by remember { mutableStateOf("") }
-//    var address by remember { mutableStateOf("") }
-//    var instructions by remember { mutableStateOf("") }
-//    var orderType by remember { mutableStateOf("Delivery") }
-
-    // Track whether user has touched each field (so errors don't show before interaction)
-    var nameTouched by remember { mutableStateOf(false) }
-    var phoneTouched by remember { mutableStateOf(false) }
-    var addressTouched by remember { mutableStateOf(false) }
-
-
-    // Validation
-    val nameError =
-        if (nameTouched && orderState.customerName.isBlank()) "Name is required" else null
-    val phoneError = when {
-        phoneTouched && orderState.phone.isBlank() -> "Phone number is required"
-        phoneTouched && !orderState.phone.matches(Regex("^[+]?[0-9]{7,15}$")) -> "Enter a valid phone number"
-        else -> null
-    }
-    val addressError =
-        if (orderState.orderType == "Delivery" && addressTouched && orderState.address.isBlank()) "Address is required for delivery" else null
-
-    val isFormValid = orderState.customerName.isNotBlank()
-            && orderState.phone.matches(Regex("^[+]?[0-9]{10,13}$"))
-            && (orderState.orderType != "Delivery" || orderState.address.isNotBlank())
 
     Scaffold(
         topBar = {
@@ -218,51 +107,6 @@ fun CartScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
-        },
-
-        bottomBar = {
-            if (state.cartItems.isNotEmpty()) {
-                Surface(shadowElevation = 8.dp) {
-                    Button(
-                        onClick = {
-
-                            initiatePayment(
-                                context = context,
-                                name = orderState.customerName,
-                                contact = orderState.phone,
-                                amount = (viewModel.getTotalCartValue() * 100).toString()
-                            )
-//                            viewModel.placeOrder(
-//                                address = address,
-//                                customerName = customerName,
-//                                phone = phone,
-//                                orderType = orderType,
-//                                instruction = instructions
-//                            )
-
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(16.dp)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isFormValid)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                        )
-                    ) {
-                        Text(
-                            "Place Order • ₹${"%.2f".format(viewModel.getTotalCartValue())}",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = if (isFormValid) Color.White
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-                }
-            }
         }
     ) { padding ->
 
@@ -301,6 +145,10 @@ fun CartScreen(
             return@Scaffold
         }
 
+        val groupedItems = remember(state.cartItems) {
+            state.cartItems.groupBy { it.outlet_id }
+        }
+
         LazyColumn(
             contentPadding = PaddingValues(
                 top = padding.calculateTopPadding() + 8.dp,
@@ -308,230 +156,145 @@ fun CartScreen(
                 start = 16.dp,
                 end = 16.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(state.cartItems, key = { it.products!!.id }) { cartItem ->
-                CartItemCard(
-                    cartItem = cartItem,
-                    onIncrement = {
-
-                        viewModel.updateCartItemQuantity(cartItem.products!!, cartItem.qty + 1)
-                    },
-                    onDecrement = {
-                        viewModel.updateCartItemQuantity(cartItem.products!!, cartItem.qty - 1)
-                    },
-                    onRemove = { viewModel.removeFromCart(cartItem.products!!.id) }
-                )
-            }
-
-            // Order details form
-            item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("Order Details", style = MaterialTheme.typography.titleLarge)
-
-                        // Order Type chips — placed first so address field
-                        // appears/disappears before the user reaches it
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("Delivery", "Pickup", "Dine-In").forEach { type ->
-                                FilterChip(
-                                    selected = orderState.orderType == type,
-                                    onClick = {
-                                        viewModel.updateOrderType(type)
-                                        // Reset address touched state when switching away from Delivery
-                                        if (type != "Delivery") addressTouched = false
-                                    },
-                                    label = { Text(type) }
-                                )
-                            }
+            groupedItems.forEach { (outletId, items) ->
+                val outlet = items.firstOrNull()?.outlets
+                item {
+                    OutletCartGroup(
+                        outletName = outlet?.name ?: "Unknown Outlet",
+                        items = items,
+                        onCheckout = { onCheckoutOutlet(outletId) },
+                        onIncrement = { cartItem ->
+                            viewModel.updateCartItemQuantity(cartItem.outlet_menu_items!!, (cartItem.qty + 1).toInt())
+                        },
+                        onDecrement = { cartItem ->
+                            viewModel.updateCartItemQuantity(cartItem.outlet_menu_items!!, (cartItem.qty - 1).toInt())
+                        },
+                        onRemove = { cartItem ->
+                            viewModel.removeFromCart(cartItem.menu_item_id)
                         }
-
-                        // Customer Name
-                        OutlinedTextField(
-                            value = orderState.customerName,
-                            onValueChange = {
-                                viewModel.updateCustomerName(it)
-                                nameTouched = true
-                            },
-                            label = { Text("Customer Name *") },
-                            isError = nameError != null,
-                            supportingText = {
-                                if (nameError != null) {
-                                    Text(nameError, color = MaterialTheme.colorScheme.error)
-                                }
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Person, contentDescription = null)
-                            },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Words,
-                                imeAction = ImeAction.Next
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Phone Number
-                        OutlinedTextField(
-                            value = orderState.phone,
-                            onValueChange = {
-                                viewModel.updatePhone(it)
-                                phoneTouched = true
-                            },
-                            label = { Text("Phone Number *") },
-                            isError = phoneError != null,
-                            supportingText = {
-                                if (phoneError != null) {
-                                    Text(phoneError, color = MaterialTheme.colorScheme.error)
-                                }
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Phone, contentDescription = null)
-                            },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Phone,
-                                imeAction = ImeAction.Next
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Address — required only for Delivery
-                        if (orderState.orderType == "Delivery") {
-                            OutlinedTextField(
-                                value = orderState.address,
-                                onValueChange = {
-                                    viewModel.updateAddress(it)
-                                    addressTouched = true
-                                },
-                                label = { Text("Delivery Address *") },
-                                isError = addressError != null,
-                                supportingText = {
-                                    if (addressError != null) {
-                                        Text(addressError, color = MaterialTheme.colorScheme.error)
-                                    }
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.LocationOn, contentDescription = null)
-                                },
-                                minLines = 2,
-                                maxLines = 3,
-                                keyboardOptions = KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.Sentences,
-                                    imeAction = ImeAction.Next
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            FilledTonalButton(
-                                onClick = {
-
-                                    println("clicked ")
-                                    if (viewModel.hasLocationPermission()) {
-                                        if (viewModel.isGpsEnabled()) {
-                                            isFetchingLocation = true
-                                            println("location permission and gps ")
-
-
-                                            viewModel.fetchCurrentLocation()
-                                        } else {
-                                            showGpsDialog = true
-                                        }
-                                    } else {
-                                        permissionLauncher.launch(
-                                            arrayOf(
-                                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                                Manifest.permission.ACCESS_COARSE_LOCATION
-                                            )
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.small
-                            ) {
-                                if (isFetchingLocation) {
-                                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                                } else {
-                                    Icon(Icons.Rounded.MyLocation, null, Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Deliver To  Current Location")
-                                }
-                            }
-                        }
-
-                        // Special Instructions — optional
-                        OutlinedTextField(
-                            value = orderState.instructions,
-                            onValueChange = { viewModel.updateInstructions(it) },
-                            label = { Text("Special Instructions") },
-                            placeholder = { Text("Optional — e.g. extra spicy, no onions…") },
-                            leadingIcon = {
-                                Icon(Icons.Default.EditNote, contentDescription = null)
-                            },
-                            minLines = 2,
-                            maxLines = 4,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Sentences,
-                                imeAction = ImeAction.Done
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-
-            // Order summary
-            item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text("Order Summary", style = MaterialTheme.typography.titleLarge)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Total", style = MaterialTheme.typography.titleLarge)
-                            Text(
-                                "₹${"%.2f".format(viewModel.getTotalCartValue())}",
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Black
-                                )
-                            )
-                        }
-                    }
+                    )
                 }
             }
         }
     }
+}
 
-    if (showGpsDialog) {
-        AlertDialog(
-            onDismissRequest = { showGpsDialog = false },
-            confirmButton = {
-                Button(onClick = {
-                    showGpsDialog = false
-                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                }) { Text("Open Settings") }
-            },
-            title = { Text("GPS Disabled") },
-            text = { Text("Please turn on your device location to auto-detect your address.") }
+@Composable
+fun OutletCartGroup(
+    outletName: String,
+    items: List<CartItem>,
+    onCheckout: () -> Unit,
+    onIncrement: (CartItem) -> Unit,
+    onDecrement: (CartItem) -> Unit,
+    onRemove: (CartItem) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = outletName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "${items.size} Items",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            items.forEach { cartItem ->
+                CartItemRow(
+                    cartItem = cartItem,
+                    onIncrement = { onIncrement(cartItem) },
+                    onDecrement = { onDecrement(cartItem) },
+                    onRemove = { onRemove(cartItem) }
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            val total = items.sumOf { it.totalPrice }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Total", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "₹${"%.2f".format(total)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+                Button(
+                    onClick = onCheckout,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text("Checkout")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CartItemRow(
+    cartItem: CartItem,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+    onRemove: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = cartItem.outlet_menu_items?.image?.firstOrNull() ?: "",
+            contentDescription = cartItem.outlet_menu_items?.product_catalog?.name,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(60.dp)
+                .padding(4.dp)
         )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                cartItem.outlet_menu_items?.product_catalog?.name ?: "N/A",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+            Text(
+                "₹${cartItem.outlet_menu_items?.price}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        QuantitySelector(
+            quantity = cartItem.qty.toInt(),
+            onDecrement = onDecrement,
+            onIncrement = onIncrement
+        )
+        IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Remove",
+                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }
 
@@ -588,8 +351,8 @@ private fun CartItemCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = cartItem.products!!.image[0],
-                contentDescription = cartItem.products!!.name,
+                model = cartItem.outlet_menu_items?.image?.firstOrNull() ?: "",
+                contentDescription = cartItem.outlet_menu_items?.product_catalog?.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(80.dp)
@@ -600,15 +363,15 @@ private fun CartItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    VegDot(isVeg = cartItem.products?.isVeg ?: false)
+                    VegDot(isVeg = cartItem.outlet_menu_items?.product_catalog?.is_veg ?: false)
                     Text(
-                        cartItem.products?.name ?: "N/A",
+                        cartItem.outlet_menu_items?.product_catalog?.name ?: "N/A",
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1
                     )
                 }
                 Text(
-                    "₹${cartItem.products?.price}",
+                    "₹${cartItem.outlet_menu_items?.price}",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -616,7 +379,7 @@ private fun CartItemCard(
                 )
                 Spacer(Modifier.height(8.dp))
                 QuantitySelector(
-                    quantity = cartItem.qty,
+                    quantity = cartItem.qty.toInt(),
                     onDecrement = onDecrement,
                     onIncrement = onIncrement
                 )

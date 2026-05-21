@@ -21,10 +21,16 @@ sealed interface Screen {
 
 
     @Serializable
-    data class Detail(val itemId: Int) : Screen
+    data class Detail(val itemId: Long) : Screen
 
     @Serializable
     data object Cart : Screen
+
+    @Serializable
+    data class DetailAdd(val outletId: Long) : Screen
+
+    @Serializable
+    data class Payment(val outletId: Long) : Screen
 
     @Serializable
     data object Menu : Screen
@@ -40,7 +46,7 @@ sealed interface Screen {
 
 
     @Serializable
-    data object AddReviews : Screen
+    data class AddReviews(val productId: Long = 0L) : Screen
 
     @Serializable
     data object CustomerSupport : Screen

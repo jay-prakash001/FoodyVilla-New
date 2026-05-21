@@ -12,6 +12,8 @@ import androidx.navigation.toRoute
 import com.jp.foodyvilla.presentation.screens.MainScreen
 import com.jp.foodyvilla.presentation.screens.account.ProfileScreen
 import com.jp.foodyvilla.presentation.screens.cart.CartScreen
+import com.jp.foodyvilla.presentation.screens.cart.DetailAddScreen
+import com.jp.foodyvilla.presentation.screens.cart.PaymentScreen
 import com.jp.foodyvilla.presentation.screens.contactUs.ContactUsScreen
 import com.jp.foodyvilla.presentation.screens.detail.DetailScreen
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
@@ -98,7 +100,38 @@ fun FoodyVillaNavGraph() {
         composable<Screen.Cart> {
             CartScreen(
                 onBack = { navController.popBackStack() },
-                onBrowseMenu = { navController.navigate(Screen.Home) }, viewModel = homeViewModel, loginViewModel = loginViewModel
+                onBrowseMenu = { navController.navigate(Screen.Home) },
+                onCheckoutOutlet = { outletId ->
+                    navController.navigate(Screen.DetailAdd(outletId))
+                },
+                viewModel = homeViewModel,
+                loginViewModel = loginViewModel
+            )
+        }
+
+        composable<Screen.DetailAdd> { backStack ->
+            val args: Screen.DetailAdd = backStack.toRoute()
+            DetailAddScreen(
+                outletId = args.outletId,
+                onBack = { navController.popBackStack() },
+                onProceedToPayment = { outletId ->
+                    navController.navigate(Screen.Payment(outletId))
+                },
+                viewModel = homeViewModel
+            )
+        }
+
+        composable<Screen.Payment> { backStack ->
+            val args: Screen.Payment = backStack.toRoute()
+            PaymentScreen(
+                outletId = args.outletId,
+                onBack = { navController.popBackStack() },
+                onOrderSuccess = {
+                    navController.navigate(Screen.Home) {
+                        popUpTo(Screen.Home) { inclusive = true }
+                    }
+                },
+                viewModel = homeViewModel
             )
         }
 
@@ -109,8 +142,10 @@ fun FoodyVillaNavGraph() {
                 onNavigateBack = { navController.popBackStack() },
             )
         }
-        composable<Screen.AddReviews> {
+        composable<Screen.AddReviews> { backStack ->
+            val args: Screen.AddReviews = backStack.toRoute()
             AddReviewScreen(
+                productId = args.productId,
                 viewModel = koinViewModel(),
                 onBack = { navController.popBackStack() }
             )

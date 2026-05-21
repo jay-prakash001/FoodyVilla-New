@@ -91,6 +91,10 @@ class ReviewsViewModel(
         _addState.value = current.copy(images = current.images - uri)
     }
 
+    fun resetAddState() {
+        _addState.value = AddReviewState()
+    }
+
     // ----------------------
     // SUBMIT REVIEW
     // ----------------------

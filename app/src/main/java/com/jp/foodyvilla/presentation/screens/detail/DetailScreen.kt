@@ -1,59 +1,22 @@
 package com.jp.foodyvilla.presentation.screens.detail
 
-
-// ... existing imports
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,220 +30,125 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.jp.foodyvilla.data.model.FoodItem
+import com.jp.foodyvilla.data.model.Review
+import com.jp.foodyvilla.data.model.OutletMenuItem
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
-import com.jp.foodyvilla.presentation.screens.home.SecondaryGreen
+import com.jp.foodyvilla.presentation.screens.home.RatingChip
 import com.jp.foodyvilla.presentation.screens.home.VegDot
-import com.jp.foodyvilla.presentation.utils.UiState
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DetailScreen(
-    itemId: Int,
+    itemId: Long,
     onBack: () -> Unit,
     onCartClick: () -> Unit,
-
-    onItemClick: (Int) -> Unit,
+    onItemClick: (Long) -> Unit,
     viewModel: DetailViewModel = koinViewModel(parameters = { parametersOf(itemId) }),
     homeViewModel: HomeViewModel,
 ) {
-
     val primaryRed = MaterialTheme.colorScheme.primary
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val reviews by viewModel.reviews.collectAsStateWithLifecycle()
     val homeState by homeViewModel.uiState.collectAsStateWithLifecycle()
-
     val item = state.item
-
 
     LaunchedEffect(itemId) {
         viewModel.loadItem(itemId)
     }
 
     LaunchedEffect(homeState.cartItems) {
-
-        val cartItem = homeState.cartItems
-            .firstOrNull { it.product_id == itemId }
-
-        viewModel.updateQuantity(cartItem?.qty ?: 1)
+        val cartItem = homeState.cartItems.firstOrNull { it.menu_item_id == itemId }
+        viewModel.updateQuantity(cartItem?.qty?.toInt() ?: 1)
     }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "FoodyVilla",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            color = primaryRed,
-                            fontWeight = FontWeight.Black
-                        )
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                    }
-                },
+                title = { Text("FoodyVilla", fontWeight = FontWeight.Black, color = primaryRed) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
                 actions = {
-                    if (item != null) {
-                        IconButton(onClick = viewModel::toggleWishlist) {
-                            Icon(
-                                if (state.isWishlisted) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                null,
-                                tint = primaryRed
-                            )
-                        }
+                    IconButton(onClick = viewModel::toggleWishlist) {
+                        Icon(if (state.isWishlisted) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint = primaryRed)
                     }
                     IconButton(onClick = onCartClick) {
-                        Icon(Icons.Default.ShoppingCart, null, tint = primaryRed)
+                        BadgedBox(badge = { if(homeState.cartItems.isNotEmpty()) Badge { Text(homeState.cartItems.size.toString()) } }) {
+                            Icon(Icons.Default.ShoppingCart, null, tint = primaryRed)
+                        }
                     }
                 }
             )
         },
-
         bottomBar = {
             if (item != null) {
                 Surface(shadowElevation = 12.dp) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         QuantitySelector(
                             quantity = state.quantity,
                             onDecrement = { viewModel.updateQuantity(state.quantity - 1) },
                             onIncrement = { viewModel.updateQuantity(state.quantity + 1) }
                         )
-
-                        if (homeState.cartItems.any { it.products?.id == item.id }) {
-                            Button(
-                                onClick = { homeViewModel.updateCartItemQuantity(item, 0) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
-                            ) {
-                                Text(
-                                    "Remove From Cart",
-                                    color = Color.White
-                                )
-                            }
-                        } else {
-                            Button(
-                                onClick = { homeViewModel.updateCartItemQuantity(item, state.quantity) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
-                            ) {
-                                Text(
-                                    "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}",
-                                    color = Color.White
-                                )
-                            }
+                        Spacer(Modifier.width(16.dp))
+                        val inCart = homeState.cartItems.any { it.menu_item_id == item.id }
+                        Button(
+                            onClick = { 
+                                if (inCart) homeViewModel.updateCartItemQuantity(item, 0)
+                                else homeViewModel.updateCartItemQuantity(item, state.quantity)
+                            },
+                            modifier = Modifier.weight(1f).height(52.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
+                        ) {
+                            Text(if (inCart) "Remove From Cart" else "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}")
                         }
-
                     }
                 }
             }
         }
     ) { padding ->
-
         if (state.isLoading || item == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = primaryRed)
-            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = primaryRed) }
             return@Scaffold
         }
 
-        // ✅ FIX: Use LazyColumn instead of Column + scroll
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 100.dp)
-        ) {
-
-            // 🔥 HERO IMAGE
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 100.dp)) {
             item {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(320.dp)
-                ) {
+                Box(Modifier.fillMaxWidth().height(320.dp)) {
                     FoodImageSlider(images = item.image)
-
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color.Transparent, MaterialTheme.colorScheme.surface),
-                                    startY = 500f
-                                )
-                            )
-                    )
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.surface), startY = 500f)))
                 }
             }
-
-            // 🔥 MAIN CONTENT
             item {
-                Column(
-                    Modifier
-                        .offset(y = (-24).dp)
-                        .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(20.dp)
-                ) {
-
-                    Text(item.name, style = MaterialTheme.typography.headlineMedium)
-
-                    Text(
-                        "₹${item.price}",
-                        style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed)
-                    )
-
+                Column(Modifier.offset(y = (-24).dp).clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surface).padding(20.dp)) {
+                    Text(item.product_catalog?.name ?: "", style = MaterialTheme.typography.headlineMedium)
+                    Text("₹${item.price}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
                     Spacer(Modifier.height(12.dp))
-
-                    Text(item.description)
-
+                    Text(item.product_catalog?.description ?: "")
                     Spacer(Modifier.height(20.dp))
-                }
-            }
-
-            // 🔥 SUGGESTED ITEMS GRID (FIXED)
-            val suggestedItems = homeState.allItems.filter {
-                it.category.equals(item.category, true) && it.id != item.id
-            }.take(6)
-
-            if (suggestedItems.isNotEmpty()) {
-
-                item {
-                    Text(
-                        "More from ${item.category}",
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
-
-                // ✅ KEY FIX: No nested scroll issue now
-                item {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier
-                            .height(400.dp) // IMPORTANT: give bounded height
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(suggestedItems) {
-                            SuggestedDishCard(
-                                item = it,
-                                onClick = { onItemClick(it.id) }
-                            )
+                    
+                    if (item.product_catalog?.nutritional_info != null) {
+                        Text("Nutritional Info", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val info = item.product_catalog.nutritional_info
+                            listOf("Protein" to info.protein, "Energy" to info.energy, "Carbs" to info.carbs, "Fat" to info.fat).forEach { (label, value) ->
+                                NutritionChip(label, value, Modifier.weight(1f))
+                            }
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(24.dp))
+                    
+                    // Reviews Section
+                    Text("Customer Reviews", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    if (reviews.isEmpty()) {
+                        Text("No reviews yet. Be the first to review!", modifier = Modifier.padding(vertical = 12.dp))
+                    } else {
+                        reviews.forEach { review ->
+                            ReviewItem(review)
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
@@ -289,56 +157,24 @@ fun DetailScreen(
     }
 }
 
-
-
 @Composable
-fun SuggestedDishCard(item: FoodItem, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .width(160.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
-                alpha = 0.4f
-            )
-        )
-    ) {
-        Column {
-            AsyncImage(
-                model = item.image.firstOrNull(),
-                contentDescription = item.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                error = painterResource(android.R.drawable.ic_menu_report_image)
-            )
-            Column(modifier = Modifier.padding(10.dp)) {
-                Text(
-                    item.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        "₹${item.price}",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+fun ReviewItem(review: Review) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(review.user_name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            RatingChip(rating = review.rating.toDouble())
+        }
+        Text(review.comment, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+        if (review.img_url.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                items(review.img_url) { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Star,
-                            null,
-                            tint = Color(0xFFFFA000),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(" ${item.rating}", style = MaterialTheme.typography.labelSmall)
-                    }
                 }
             }
         }
@@ -346,133 +182,35 @@ fun SuggestedDishCard(item: FoodItem, onClick: () -> Unit) {
 }
 
 @Composable
-fun InfoBadge(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    iconColor: Color = Color.Gray
-) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(16.dp))
-            Text(text, style = MaterialTheme.typography.labelLarge)
+fun NutritionChip(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))) {
+        Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
 
-
-
-
 @Composable
 fun FoodImageSlider(images: List<String>) {
     val pagerState = rememberPagerState(pageCount = { images.size })
-
     Box {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-
-            AsyncImage(
-                model = images[page],
-                contentDescription = "Food Image",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+            AsyncImage(model = images[page], contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
-
-        // 🔵 Optional: Indicator dots
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
+        Row(Modifier.align(Alignment.BottomCenter).padding(8.dp)) {
             repeat(images.size) { index ->
-                val isSelected = pagerState.currentPage == index
-                Box(
-                    modifier = Modifier
-                        .padding(2.dp)
-                        .size(if (isSelected) 8.dp else 6.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isSelected) Color.White else Color.Gray
-                        )
-                )
+                Box(Modifier.padding(2.dp).size(if (pagerState.currentPage == index) 8.dp else 6.dp).clip(CircleShape).background(if (pagerState.currentPage == index) Color.White else Color.Gray))
             }
         }
     }
 }
 
 @Composable
-private fun NutritionChip(label: String, value: String, modifier: Modifier = Modifier) {
-    val PrimaryRed = MaterialTheme.colorScheme.primary
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = PrimaryRed.copy(alpha = 0.08f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                value,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    color = PrimaryRed,
-                    fontWeight = FontWeight.Bold
-                )
-            )
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-
-@Composable
-fun QuantitySelector(
-    quantity: Int,
-    onDecrement: () -> Unit,
-    onIncrement: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val PrimaryRed = MaterialTheme.colorScheme.primary
-
-    Row(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(50.dp))
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        IconButton(onClick = onDecrement, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Default.Remove,
-                contentDescription = "Decrease",
-                tint = PrimaryRed,
-                modifier = Modifier.size(16.dp)
-            )
-        }
+fun QuantitySelector(quantity: Int, onDecrement: () -> Unit, onIncrement: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, CircleShape).padding(horizontal = 4.dp)) {
+        IconButton(onClick = onDecrement) { Icon(Icons.Default.Remove, null) }
         Text(quantity.toString(), style = MaterialTheme.typography.titleMedium)
-        IconButton(onClick = onIncrement, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = "Increase",
-                tint = PrimaryRed,
-                modifier = Modifier.size(16.dp)
-            )
-        }
+        IconButton(onClick = onIncrement) { Icon(Icons.Default.Add, null) }
     }
 }

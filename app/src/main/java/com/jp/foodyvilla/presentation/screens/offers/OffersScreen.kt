@@ -88,9 +88,9 @@ private fun OfferCard(offer: OfferFood) {
 //                }
             }
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(offer.title, style = MaterialTheme.typography.titleLarge)
+                Text(offer.title ?: "", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    offer.desc,
+                    offer.description ?: "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
