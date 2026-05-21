@@ -95,13 +95,13 @@ fun DetailScreen(
                         val inCart = homeState.cartItems.any { it.menu_item_id == item.id }
                         Button(
                             onClick = { 
-                                if (inCart) homeViewModel.updateCartItemQuantity(item, 0)
+                                if (inCart) onCartClick()
                                 else homeViewModel.updateCartItemQuantity(item, state.quantity)
                             },
                             modifier = Modifier.weight(1f).height(52.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
                         ) {
-                            Text(if (inCart) "Remove From Cart" else "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}")
+                            Text(if (inCart) "Go to Cart" else "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}")
                         }
                     }
                 }

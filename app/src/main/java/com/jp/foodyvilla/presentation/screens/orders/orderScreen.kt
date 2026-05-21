@@ -57,11 +57,27 @@ fun OrderHistoryScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     items(orders, key = { it.id }) { order ->
-                        OrderCard(
-                            order = order, 
-                            onCancel = { viewModel.cancelOrder(order) },
-                            onAddReview = onAddReview
-                        )
+                        Card(
+                            onClick = { 
+                                val status = order.status.lowercase()
+                                if (status == "delivered" || status == "completed") {
+                                    // Navigate to review for the first item or show a picker
+                                    val firstItem = order.order_items.firstOrNull()
+                                    if (firstItem != null) {
+                                        onAddReview(firstItem.outlet_menu_items?.product_id ?: 0L)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                        ) {
+                            OrderCard(
+                                order = order, 
+                                onCancel = { viewModel.cancelOrder(order) },
+                                onAddReview = onAddReview
+                            )
+                        }
                     }
                     item { Spacer(Modifier.height(100.dp)) }
                 }
@@ -160,7 +176,8 @@ fun OrderCard(order: OrderModel, onCancel: () -> Unit, onAddReview: (Long) -> Un
             Spacer(Modifier.height(16.dp))
 
             // Order Items
-            val canReview = order.status.lowercase() == "delivered"
+            val status = order.status.lowercase()
+            val canReview = status == "delivered" || status == "completed"
             order.order_items.forEach { item ->
                 OrderItemRow(item, canReview, onAddReview)
                 Spacer(Modifier.height(8.dp))
@@ -259,7 +276,7 @@ private fun OrderItemRow(item: OrderItem, canReview: Boolean, onAddReview: (Long
 private fun StatusBadge(status: String) {
     val (containerColor, contentColor) = when (status.lowercase()) {
         "pending", "placed" -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
-        "delivered" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+        "delivered", "completed" -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
         "cancelled" -> Color(0xFFFFEBEE) to Color(0xFFC62828)
         "processing" -> Color(0xFFFFF3E0) to Color(0xFFF57C00)
         else -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer

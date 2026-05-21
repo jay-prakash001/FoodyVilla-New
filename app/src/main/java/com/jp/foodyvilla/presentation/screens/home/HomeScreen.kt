@@ -206,13 +206,18 @@ fun FoodGridCard(
             Text("₹${item.price}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 4.dp))
             
             if (!inCart) {
-                Button(
-                    onClick = onAddToCart, 
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .clickable { onAddToCart() },
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(0.dp)
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Text("Add")
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("+", style = MaterialTheme.typography.titleLarge)
+                    }
                 }
             } else {
                 val cartItem = homeState.cartItems.find { it.menu_item_id == item.id }

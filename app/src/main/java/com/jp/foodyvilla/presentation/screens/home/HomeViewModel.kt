@@ -34,6 +34,7 @@ data class HomeUiState(
     val banners: List<Banner> = emptyList(),
     val cartItems: List<CartItem> = emptyList(),
     val selectedCategory: Long = -1L,
+    val selectedOutletId: Long = -1L,
     val searchQuery: String = "",
     val errorMessage: String? = null
 ) {
@@ -52,7 +53,10 @@ data class HomeUiState(
                 val matchesCategory = selectedCategory == -1L ||
                         item.product_catalog?.category_id == selectedCategory
 
-                matchesSearch && matchesCategory
+                val matchesOutlet = selectedOutletId == -1L ||
+                        item.outlet_id == selectedOutletId
+
+                matchesSearch && matchesCategory && matchesOutlet
             }
         }
 }
@@ -189,7 +193,7 @@ class HomeViewModel(
 
     private fun updatePurchasedProducts(orders: List<OrderModel>) {
         val ids = orders
-            .filter { it.status.lowercase() == "delivered" }
+            .filter { it.status.lowercase() == "delivered" || it.status.lowercase() == "completed" }
             .flatMap { it.order_items }
             .map { it.menu_item_id }
             .toSet()
@@ -377,6 +381,10 @@ class HomeViewModel(
 
     fun selectCategory(categoryId: Long) {
         _uiState.update { it.copy(selectedCategory = categoryId) }
+    }
+
+    fun selectOutlet(outletId: Long) {
+        _uiState.update { it.copy(selectedOutletId = outletId) }
     }
 
     fun onSearchQueryChange(query: String) {

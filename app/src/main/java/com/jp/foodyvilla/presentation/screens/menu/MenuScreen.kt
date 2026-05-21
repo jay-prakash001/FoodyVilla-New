@@ -1,10 +1,12 @@
 package com.jp.foodyvilla.presentation.screens.menu
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,19 +50,71 @@ fun MenuScreen(
         modifier = Modifier.fillMaxSize().imePadding(),
         topBar = {
             Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp)
+                modifier = Modifier.fillMaxWidth(),
+                shadowElevation = 4.dp
             ) {
-                OutlinedTextField(
-                    value = state.searchQuery,
-                    onValueChange = viewModel::onSearchQueryChange,
-                    placeholder = { Text("Search dishes, cuisines...") },
-                    leadingIcon = { Icon(Icons.Default.Search, null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions { focusManager.clearFocus() }
-                )
+                Column {
+                    OutlinedTextField(
+                        value = state.searchQuery,
+                        onValueChange = viewModel::onSearchQueryChange,
+                        placeholder = { Text("Search dishes, cuisines...") },
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions { focusManager.clearFocus() }
+                    )
+                    
+                    // Sticky Filters
+                    Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                        // Category Filter
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            items(state.categories) { cat ->
+                                CategoryChip(
+                                    label = cat.name,
+                                    emoji = cat.emoji,
+                                    selected = state.selectedCategory == cat.id,
+                                    onClick = { viewModel.selectCategory(cat.id) }
+                                )
+                            }
+                        }
+                        
+                        // Outlet Filter
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            item {
+                                FilterChip(
+                                    selected = state.selectedOutletId == -1L,
+                                    onClick = { viewModel.selectOutlet(-1L) },
+                                    label = { Text("All Outlets") }
+                                )
+                            }
+                            items(state.outlets) { outlet ->
+                                FilterChip(
+                                    selected = state.selectedOutletId == outlet.id,
+                                    onClick = { viewModel.selectOutlet(outlet.id) },
+                                    label = { Text(outlet.name) },
+                                    leadingIcon = {
+                                        AsyncImage(
+                                            model = outlet.logo_url,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp).clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     ) { padding ->
@@ -74,32 +128,19 @@ fun MenuScreen(
         LazyColumn(
             contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = 100.dp)
         ) {
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    items(state.categories) { cat ->
-                        CategoryChip(
-                            label = cat.name,
-                            emoji = cat.emoji,
-                            selected = state.selectedCategory == cat.id,
-                            onClick = { viewModel.selectCategory(cat.id) }
-                        )
-                    }
-                }
-            }
-
             state.outlets.forEach { outlet ->
+                // Apply combined filters
                 val displayItems = outlet.outlet_menu_items?.filter { item ->
                     val matchesCategory = state.selectedCategory == -1L ||
                             item.product_catalog?.category_id == state.selectedCategory
 
+                    val matchesOutlet = state.selectedOutletId == -1L ||
+                            outlet.id == state.selectedOutletId
+
                     val matchesSearch = state.searchQuery.isBlank() ||
                             item.product_catalog?.name?.contains(state.searchQuery, true) == true
 
-                    matchesCategory && matchesSearch
+                    matchesCategory && matchesOutlet && matchesSearch
                 } ?: emptyList()
 
                 if (displayItems.isNotEmpty()) {
@@ -108,6 +149,7 @@ fun MenuScreen(
                     items(displayItems, key = { it.id }) { item ->
                         FoodListItem(
                             item = item,
+                            outletLogo = outlet.logo_url,
                             onAddToCart = { viewModel.updateCartItemQuantity(item) },
                             onClick = { onItemClick(item.id) },
                             homeViewModel = viewModel,
@@ -123,6 +165,7 @@ fun MenuScreen(
 @Composable
 fun FoodListItem(
     item: OutletMenuItem,
+    outletLogo: String?,
     onAddToCart: () -> Unit,
     onClick: () -> Unit,
     homeViewModel: HomeViewModel,
@@ -141,12 +184,31 @@ fun FoodListItem(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = item.image.firstOrNull(),
-                contentDescription = item.product_catalog?.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(100.dp).clip(RoundedCornerShape(12.dp))
-            )
+            Box(modifier = Modifier.size(100.dp)) {
+                AsyncImage(
+                    model = item.image.firstOrNull(),
+                    contentDescription = item.product_catalog?.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
+                )
+                
+                // Outlet Mini Logo
+                if (outletLogo != null) {
+                    AsyncImage(
+                        model = outletLogo,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .padding(1.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
             
             Spacer(Modifier.width(16.dp))
             
@@ -189,13 +251,17 @@ fun FoodListItem(
                     )
                     
                     if (!inCart) {
-                        Button(
-                            onClick = onAddToCart,
+                        Surface(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clickable { onAddToCart() },
                             shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                            modifier = Modifier.height(36.dp)
+                            color = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ) {
-                            Text("Add", style = MaterialTheme.typography.labelLarge)
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("+", style = MaterialTheme.typography.titleLarge)
+                            }
                         }
                     } else {
                         val cartItem = homeState.cartItems.find { it.menu_item_id == item.id }
