@@ -4,9 +4,13 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ReviewInsertDto(
-    val user_name: String,
-    val comment: String,
+    val customer_id: Long,
+    val review_type: String,
+    val order_id: String? = null,
+    val menu_item_id: Long? = null,
+    val outlet_id: Long? = null,
     val rating: Int,
-    val img_url: List<String>,
-    val product_id: Long? = null
+    val title: String? = null,
+    val description: String? = null,
+    val img_url: List<String>? = emptyList()
 )

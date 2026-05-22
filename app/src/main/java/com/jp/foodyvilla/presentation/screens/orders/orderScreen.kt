@@ -60,11 +60,9 @@ fun OrderHistoryScreen(
                             onClick = { 
                                 val status = order.status.lowercase()
                                 if (status == "delivered" || status == "completed") {
-                                    // Navigate to review for the first item or show a picker
-                                    val firstItem = order.order_items.firstOrNull()
-                                    if (firstItem != null) {
-                                        onAddReview(firstItem.outlet_menu_items?.product_id ?: 0L)
-                                    }
+                                    // Navigate to review for the order itself or first item
+                                    onAddReview(order.order_items.firstOrNull()?.outlet_menu_items?.product_id ?: 0L)
+                                    // Alternatively, pass orderId/outletId if you want order-level reviews
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

@@ -46,7 +46,11 @@ sealed interface Screen {
 
 
     @Serializable
-    data class AddReviews(val productId: Long = 0L) : Screen
+    data class AddReviews(
+        val productId: Long = 0L,
+        val orderId: String? = null,
+        val outletId: Long? = null
+    ) : Screen
 
     @Serializable
     data object CustomerSupport : Screen

@@ -147,6 +147,8 @@ fun FoodyVillaNavGraph() {
             val args: Screen.AddReviews = backStack.toRoute()
             AddReviewScreen(
                 productId = args.productId,
+                orderId = args.orderId,
+                outletId = args.outletId,
                 viewModel = koinViewModel(),
                 onBack = { navController.popBackStack() }
             )
@@ -180,18 +182,15 @@ fun FoodyVillaNavGraph() {
             ProfileScreen(
                 viewModel = loginViewModel,
                 onLogout = {
-                    loginViewModel.logout()
                     navController.navigate(Screen.Login) {
-                        popUpTo(Screen.Profile) {
+                        popUpTo(0) {
                             inclusive = true
                         }
                     }
                 },
-                onSaveChanges = {},
                 onNavigateBack = {
                     navController.navigateUp()
                 }
-
             )
         }
     }

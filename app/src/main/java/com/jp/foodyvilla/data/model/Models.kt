@@ -79,12 +79,16 @@ data class Category(
 data class Review(
     val id: Long = 0,
     val created_at: String = "",
-    val user_id: Long? = null,
-    val product_id: Long? = null,
-    val user_name: String = "",
-    val rating: Float = 0f,
-    val comment: String = "",
-    val img_url: List<String> = emptyList()
+    val customer_id: Long? = null,
+    val review_type: String = "product", // 'order', 'product', 'outlet'
+    val order_id: String? = null,
+    val menu_item_id: Long? = null,
+    val outlet_id: Long? = null,
+    val rating: Long = 0,
+    val title: String? = null,
+    val description: String? = null,
+    val img_url: List<String>? = emptyList(),
+    val user_name: String? = null // This might need a join with users table or be part of title
 )
 
 // Legacy compatibility or replacement

@@ -99,18 +99,19 @@ class ReviewsViewModel(
     // SUBMIT REVIEW
     // ----------------------
 
-    fun submit(context: Context, productId: Long? = null) {
+    fun submit(
+        context: Context, 
+        productId: Long? = null,
+        orderId: String? = null,
+        outletId: Long? = null,
+        reviewType: String = "product"
+    ) {
         viewModelScope.launch {
-
             val current = _addState.value
-
             _addState.value = current.copy(isLoading = true, error = null)
 
             try {
-                val uploadedUrls = repo.uploadImages(
-                    context,
-                    current.images
-                )
+                val uploadedUrls = repo.uploadImages(context, current.images)
 
                 repo.insertReview(
                     ReviewRequest(
@@ -118,20 +119,17 @@ class ReviewsViewModel(
                         desc = current.desc,
                         rating = current.rating,
                         imageUrls = uploadedUrls,
-                        productId = productId
+                        menuItemId = productId,
+                        orderId = orderId,
+                        outletId = outletId,
+                        reviewType = reviewType
                     )
                 )
 
                 _addState.value = AddReviewState(success = true)
-
-                // refresh list
                 loadReviews()
-
             } catch (e: Exception) {
-                _addState.value = current.copy(
-                    isLoading = false,
-                    error = e.message
-                )
+                _addState.value = current.copy(isLoading = false, error = e.message)
             }
         }
     }

@@ -224,14 +224,14 @@ fun RecommendedCard(item: OutletMenuItem, onClick: () -> Unit) {
 fun ReviewItem(review: Review) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(review.user_name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(review.title ?: "Anonymous", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             RatingChip(rating = review.rating.toDouble())
         }
-        Text(review.comment, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
-        if (review.img_url.isNotEmpty()) {
+        Text(review.description ?: "", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+        if (!review.img_url.isNullOrEmpty()) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                items(review.img_url) { url ->
+                items(review.img_url!!) { url ->
                     AsyncImage(
                         model = url,
                         contentDescription = null,

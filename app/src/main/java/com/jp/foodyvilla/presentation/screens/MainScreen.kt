@@ -206,7 +206,7 @@ fun MainScreen(
                 }
 
                 4 -> OrderHistoryScreen(viewModel = viewModel) { productId ->
-                     navController.navigate(Screen.AddReviews(productId))
+                     navController.navigate(Screen.AddReviews(productId = productId))
                 }
                 else -> HomeScreen({ itemId ->
                     navController.navigate(Screen.Detail(itemId))
