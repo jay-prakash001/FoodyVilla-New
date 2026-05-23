@@ -141,6 +141,7 @@ fun FoodyVillaNavGraph() {
         composable<Screen.CustomerSupport> {
             ContactUsScreen(
                 onNavigateBack = { navController.popBackStack() },
+                viewModel = homeViewModel
             )
         }
         composable<Screen.AddReviews> { backStack ->

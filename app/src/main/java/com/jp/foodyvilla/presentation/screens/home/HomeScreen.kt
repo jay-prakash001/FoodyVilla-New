@@ -231,6 +231,25 @@ fun FoodGridCard(
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
                 )
+
+                // Outlet Mini Logo
+                val outlet = homeState.outlets.find { it.id == item.outlet_id }
+                if (outlet?.logo_url != null) {
+                    AsyncImage(
+                        model = outlet.logo_url,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .padding(1.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
                 if (item.is_free_delivery == true) {
                     Surface(
                         modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
@@ -505,6 +524,25 @@ fun FoodCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                 )
+                
+                // Outlet Mini Logo
+                val outlet = homeState.outlets.find { it.id == item.outlet_id }
+                if (outlet?.logo_url != null) {
+                    AsyncImage(
+                        model = outlet.logo_url,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .padding(1.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
                 if (item.is_free_delivery == true) {
                     Surface(
                         modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
