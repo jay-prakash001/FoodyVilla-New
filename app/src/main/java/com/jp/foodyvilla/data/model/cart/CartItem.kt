@@ -15,7 +15,7 @@ data class CartItem(
     val outlet_menu_items: OutletMenuItem? = null,
     val outlets: Outlet? = null
 ) {
-    val totalPrice: Double get() = (outlet_menu_items?.price ?: 0.0) * qty
+    val totalPrice: Double get() = (outlet_menu_items?.discountedPrice ?: 0.0) * qty
 }
 
 @Serializable

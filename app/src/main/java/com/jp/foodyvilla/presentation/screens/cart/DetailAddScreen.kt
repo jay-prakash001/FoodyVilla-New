@@ -242,34 +242,58 @@ fun DetailAddScreen(
                         Spacer(Modifier.height(12.dp))
                         
                         outletItems.forEach { item ->
-                            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("${item.outlet_menu_items?.product_catalog?.name} x ${item.qty}", style = MaterialTheme.typography.bodyMedium)
-                                Text("₹${"%.2f".format(item.totalPrice)}", style = MaterialTheme.typography.bodyMedium)
+                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("${item.outlet_menu_items?.product_catalog?.name} x ${item.qty}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("₹${"%.2f".format((item.outlet_menu_items?.price ?: 0.0) * item.qty)}", style = MaterialTheme.typography.bodyMedium)
+                                }
+                                if ((item.outlet_menu_items?.discount ?: 0) > 0) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Discount (${item.outlet_menu_items?.discount}% off)", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50))
+                                        Text("-₹${"%.2f".format(((item.outlet_menu_items?.price ?: 0.0) - (item.outlet_menu_items?.discountedPrice ?: 0.0)) * item.qty)}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50))
+                                    }
+                                }
                             }
                         }
                         
                         HorizontalDivider(Modifier.padding(vertical = 12.dp))
                         
-                        val subtotal = outletItems.sumOf { it.totalPrice }
+                        val subtotal = outletItems.sumOf { (it.outlet_menu_items?.price ?: 0.0) * it.qty }
+                        val totalDiscount = outletItems.sumOf { ((it.outlet_menu_items?.price ?: 0.0) - (it.outlet_menu_items?.discountedPrice ?: 0.0)) * it.qty }
                         val handling = outletItems.sumOf { (it.outlet_menu_items?.handling_charges ?: 0.0) * it.qty }
-                        val delivery = if (outletItems.any { it.outlet_menu_items?.is_free_delivery == true }) 0.0 
-                                       else outletItems.maxOfOrNull { it.outlet_menu_items?.delivery_charges ?: 0.0 } ?: 0.0
-                        val total = subtotal + handling + delivery
+                        val delivery = outletItems.maxOfOrNull { it.outlet_menu_items?.delivery_charges ?: 0.0 } ?: 0.0
+                        val grandTotal = subtotal - totalDiscount + handling + delivery
 
-                        PriceRow("Item Total", subtotal)
-                        if (handling > 0) PriceRow("Handling Charges", handling)
-                        if (delivery > 0) PriceRow("Delivery Charges", delivery) 
-                        else if (outletItems.any { it.outlet_menu_items?.is_free_delivery == true }) PriceRow("Delivery Charges", 0.0, isFree = true)
+                        CheckoutPriceRow("Item Total (Original)", subtotal)
+                        if (totalDiscount > 0) CheckoutPriceRow("Total Discount", totalDiscount, isDiscount = true)
+                        if (handling > 0) CheckoutPriceRow("Handling Charges", handling)
+                        if (delivery > 0) CheckoutPriceRow("Delivery Charges", delivery) 
                         
                         HorizontalDivider(Modifier.padding(vertical = 12.dp))
                         
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Grand Total", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
-                            Text("₹${"%.2f".format(total)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text("₹${"%.2f".format(grandTotal)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CheckoutPriceRow(label: String, amount: Double, isFree: Boolean = false, isDiscount: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            if (isFree) "FREE" else if (isDiscount) "-₹${"%.2f".format(amount)}" else "₹${"%.2f".format(amount)}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = if (isFree || isDiscount) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+        )
     }
 }

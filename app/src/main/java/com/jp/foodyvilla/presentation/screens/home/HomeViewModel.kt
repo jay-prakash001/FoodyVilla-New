@@ -45,14 +45,20 @@ data class HomeUiState(
     val filteredItems: List<OutletMenuItem>
         get() {
             val query = searchQuery.trim()
+            val activeCategoryIds = categories.map { it.id }.toSet()
 
             return allItems.filter { item ->
+                val categoryId = item.product_catalog?.category_id ?: -1L
+                val isInCategoryActive = activeCategoryIds.contains(categoryId)
+                
+                if (!isInCategoryActive && categoryId != -1L) return@filter false
+
                 val matchesSearch = query.isBlank() ||
                         item.product_catalog?.name?.contains(query, true) == true ||
                         item.product_catalog?.description?.contains(query, true) == true
 
                 val matchesCategory = selectedCategory == -1L ||
-                        item.product_catalog?.category_id == selectedCategory
+                        categoryId == selectedCategory
 
                 val matchesOutlet = selectedOutletId == -1L ||
                         item.outlet_id == selectedOutletId
@@ -307,31 +313,30 @@ class HomeViewModel(
     }
 
     fun updateCartItemQuantity(item: OutletMenuItem, quantity: Int = 1) {
-        if (quantity == 0) {
-            _uiState.update { state ->
-                state.copy(cartItems = state.cartItems.filter { it.menu_item_id != item.id })
-            }
-        } else {
-            _uiState.update { state ->
-                val exists = state.cartItems.any { it.menu_item_id == item.id }
-                val updatedList = if (exists) {
-                    state.cartItems.map {
-                        if (it.menu_item_id == item.id) it.copy(qty = quantity.toLong()) else it
-                    }
-                } else {
-                    val outlet = state.outlets.find { it.id == item.outlet_id }
-                    state.cartItems + CartItem(
-                        id = 0,
-                        outlet_menu_items = item,
-                        qty = quantity.toLong(),
-                        customer_id = 0,
-                        menu_item_id = item.id,
-                        outlet_id = item.outlet_id,
-                        outlets = outlet
-                    )
+        if (quantity <= 0) {
+            removeFromCart(item.id)
+            return
+        }
+        
+        _uiState.update { state ->
+            val exists = state.cartItems.any { it.menu_item_id == item.id }
+            val updatedList = if (exists) {
+                state.cartItems.map {
+                    if (it.menu_item_id == item.id) it.copy(qty = quantity.toLong()) else it
                 }
-                state.copy(cartItems = updatedList)
+            } else {
+                val outlet = state.outlets.find { it.id == item.outlet_id }
+                state.cartItems + CartItem(
+                    id = 0,
+                    outlet_menu_items = item,
+                    qty = quantity.toLong(),
+                    customer_id = 0,
+                    menu_item_id = item.id,
+                    outlet_id = item.outlet_id,
+                    outlets = outlet
+                )
             }
+            state.copy(cartItems = updatedList)
         }
 
         viewModelScope.launch {

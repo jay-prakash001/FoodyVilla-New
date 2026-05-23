@@ -64,7 +64,7 @@ fun PaymentScreen(
             viewModel.setPendingOutletId(outletId)
             startRazorpay(
                 activity = context as Activity,
-                razorpayKey = outlet.razor_pay_key ?: "rzp_test_ShBw7mlCM6gT6y",
+                razorpayKey = outlet.razor_pay_key ?: "",
                 amount = (totalAmount * 100).toLong(),
                 name = orderState.customerName,
                 contact = orderState.phone,

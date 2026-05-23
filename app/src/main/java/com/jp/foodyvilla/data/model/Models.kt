@@ -18,6 +18,7 @@ data class ProductCatalog(
     val description: String = "",
 
     val category_id: Long? = null,
+    val categories: Category? = null,
 
     val is_veg: Boolean = true,
     val is_vegan: Boolean = false,
@@ -48,7 +49,9 @@ data class OutletMenuItem(
     val handling_charges: Double? = 0.0,
     val delivery_charges: Double? = 0.0,
     val is_free_delivery: Boolean? = false
-)
+) {
+    val discountedPrice: Double get() = if (discount > 0) price * (1 - discount / 100.0) else price
+}
 
 @Serializable
 data class Outlet(
@@ -76,7 +79,8 @@ data class Outlet(
 data class Category(
     val id: Long,
     val name: String,
-    val emoji: String
+    val emoji: String,
+    val is_active: Boolean = true
 )
 
 @Serializable

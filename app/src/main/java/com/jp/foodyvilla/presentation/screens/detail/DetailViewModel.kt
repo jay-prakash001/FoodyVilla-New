@@ -74,13 +74,8 @@ class DetailViewModel(
     }
 
     fun updateQuantity(quantity: Int) {
+        if (quantity < 1) return
         _uiState.update { it.copy(quantity = quantity) }
-        viewModelScope.launch {
-            val item = _uiState.value.item ?: return@launch
-            cartRepository.addToCart(item.id, item.outlet_id, quantity).collectLatest { 
-                println("Details Screen item quantity changed $it") 
-            }
-        }
     }
 
     fun toggleWishlist() = _uiState.update { it.copy(isWishlisted = !it.isWishlisted) }

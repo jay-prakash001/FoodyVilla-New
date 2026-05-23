@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -236,16 +237,17 @@ fun OutletCartGroup(
                 Spacer(Modifier.height(8.dp))
             }
             Spacer(Modifier.height(8.dp))
-            val subtotal = items.sumOf { it.totalPrice }
+            val subtotalOriginal = items.sumOf { (it.outlet_menu_items?.price ?: 0.0) * it.qty }
+            val totalDiscount = items.sumOf { ((it.outlet_menu_items?.price ?: 0.0) - (it.outlet_menu_items?.discountedPrice ?: 0.0)) * it.qty }
             val handling = items.sumOf { (it.outlet_menu_items?.handling_charges ?: 0.0) * it.qty }
-            val delivery = if (items.any { it.outlet_menu_items?.is_free_delivery == true }) 0.0 
-                           else items.maxOfOrNull { it.outlet_menu_items?.delivery_charges ?: 0.0 } ?: 0.0
-            val total = subtotal + handling + delivery
+            val delivery = items.maxOfOrNull { it.outlet_menu_items?.delivery_charges ?: 0.0 } ?: 0.0
+            val grandTotal = subtotalOriginal - totalDiscount + handling + delivery
 
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                PriceRow("Subtotal", subtotal)
-                if (handling > 0) PriceRow("Handling Charges", handling)
-                if (delivery > 0) PriceRow("Delivery Charges", delivery) else if (items.any { it.outlet_menu_items?.is_free_delivery == true }) PriceRow("Delivery Charges", 0.0, isFree = true)
+                CartPriceRow("Subtotal", subtotalOriginal)
+                if (totalDiscount > 0) CartPriceRow("Total Discount", totalDiscount, isDiscount = true)
+                if (handling > 0) CartPriceRow("Handling Charges", handling)
+                if (delivery > 0) CartPriceRow("Delivery Charges", delivery)
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -255,7 +257,7 @@ fun OutletCartGroup(
                     Column {
                         Text("Grand Total", style = MaterialTheme.typography.bodySmall)
                         Text(
-                            "₹${"%.2f".format(total)}",
+                            "₹${"%.2f".format(grandTotal)}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary
@@ -279,17 +281,17 @@ fun OutletCartGroup(
 }
 
 @Composable
-fun PriceRow(label: String, amount: Double, isFree: Boolean = false) {
+private fun CartPriceRow(label: String, amount: Double, isFree: Boolean = false, isDiscount: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            if (isFree) "FREE" else "₹${"%.2f".format(amount)}",
+            if (isFree) "FREE" else if (isDiscount) "-₹${"%.2f".format(amount)}" else "₹${"%.2f".format(amount)}",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
-            color = if (isFree) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+            color = if (isFree || isDiscount) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -321,11 +323,24 @@ fun CartItemRow(
                 fontWeight = FontWeight.Medium,
                 maxLines = 1
             )
-            Text(
-                "₹${cartItem.outlet_menu_items?.price}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "₹${cartItem.outlet_menu_items?.discountedPrice?.toInt()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                if ((cartItem.outlet_menu_items?.discount ?: 0) > 0) {
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "₹${cartItem.outlet_menu_items?.price?.toInt()}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            textDecoration = TextDecoration.LineThrough,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    )
+                }
+            }
         }
         QuantitySelector(
             quantity = cartItem.qty.toInt(),

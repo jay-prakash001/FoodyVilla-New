@@ -22,13 +22,17 @@ class ProductRepo(private val client: SupabaseClient) {
             *,
             outlet_menu_items(
                 *,
-                product_catalog(*)
+                product_catalog(
+                    *,
+                    categories!inner(*)
+                )
             )
             """.trimIndent()
                     )
                 ) {
                     filter {
                         eq("is_active", true)
+                        eq("outlet_menu_items.product_catalog.categories.is_active", true)
                     }
                 }
                 .decodeList<Outlet>()
@@ -67,13 +71,14 @@ class ProductRepo(private val client: SupabaseClient) {
                     Columns.raw(
                         """
                         *,
-                        menu_items:outlet_menu_items (*, product_catalog (*))
+                        menu_items:outlet_menu_items (*, product_catalog (*, categories!inner(*)))
                         """.trimIndent()
                     )
                 ) {
                     filter {
                         eq("id", id)
                         eq("is_active", true)
+                        eq("outlet_menu_items.product_catalog.categories.is_active", true)
                     }
                 }
                 .decodeSingleOrNull<Outlet>()
@@ -110,13 +115,14 @@ class ProductRepo(private val client: SupabaseClient) {
                     Columns.raw(
                         """
                         *,
-                        product_catalog (*),
+                        product_catalog (*, categories!inner(*)),
                         outlets (*)
                         """.trimIndent()
                     )
                 ) {
                     filter {
                         eq("id", id)
+                        eq("product_catalog.categories.is_active", true)
                     }
                 }
                 .decodeSingleOrNull<OutletMenuItem>()

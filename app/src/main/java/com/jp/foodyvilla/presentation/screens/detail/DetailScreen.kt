@@ -6,11 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,8 +21,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,12 +31,11 @@ import com.jp.foodyvilla.data.model.Review
 import com.jp.foodyvilla.data.model.OutletMenuItem
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.home.RatingChip
-import com.jp.foodyvilla.presentation.screens.home.VegDot
 import com.jp.foodyvilla.presentation.utils.isOutletOpen
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     itemId: Long,
@@ -60,11 +54,6 @@ fun DetailScreen(
 
     LaunchedEffect(itemId) {
         viewModel.loadItem(itemId)
-    }
-
-    LaunchedEffect(homeState.cartItems) {
-        val cartItem = homeState.cartItems.firstOrNull { it.menu_item_id == itemId }
-        viewModel.updateQuantity(cartItem?.qty?.toInt() ?: 1)
     }
 
     Scaffold(
@@ -88,14 +77,25 @@ fun DetailScreen(
             if (item != null) {
                 Surface(shadowElevation = 12.dp) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        QuantitySelector(
-                            quantity = state.quantity,
-                            onDecrement = { viewModel.updateQuantity(state.quantity - 1) },
-                            onIncrement = { viewModel.updateQuantity(state.quantity + 1) }
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        val inCart = homeState.cartItems.any { it.menu_item_id == item.id }
+                        val cartItem = homeState.cartItems.firstOrNull { it.menu_item_id == item.id }
+                        val inCart = cartItem != null
                         val isOpen = isOutletOpen(item.outlets?.opens_at, item.outlets?.closes_at)
+                        
+                        val currentQuantity = if (inCart) cartItem!!.qty.toInt() else state.quantity
+
+                        QuantitySelector(
+                            quantity = currentQuantity,
+                            onDecrement = { 
+                                if (inCart) homeViewModel.updateCartItemQuantity(item, currentQuantity - 1)
+                                else viewModel.updateQuantity(state.quantity - 1)
+                            },
+                            onIncrement = { 
+                                if (inCart) homeViewModel.updateCartItemQuantity(item, currentQuantity + 1)
+                                else viewModel.updateQuantity(state.quantity + 1)
+                            }
+                        )
+
+                        Spacer(Modifier.width(16.dp))
                         
                         Button(
                             onClick = { 
@@ -103,13 +103,15 @@ fun DetailScreen(
                                 else homeViewModel.updateCartItemQuantity(item, state.quantity)
                             },
                             modifier = Modifier.weight(1f).height(52.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = if (isOpen) primaryRed else Color.Gray),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (inCart) Color(0xFF4CAF50) else if (isOpen) primaryRed else Color.Gray
+                            ),
                             enabled = isOpen || inCart
                         ) {
                             Text(
                                 if (!isOpen && !inCart) "Closed Now"
                                 else if (inCart) "Go to Cart" 
-                                else "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}"
+                                else "Add to Cart • ₹${"%.2f".format(item.discountedPrice * state.quantity)}"
                             )
                         }
                     }
@@ -118,7 +120,7 @@ fun DetailScreen(
         }
     ) { padding ->
         if (state.isLoading || item == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = primaryRed) }
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = primaryRed) }
             return@Scaffold
         }
 
@@ -131,9 +133,67 @@ fun DetailScreen(
             }
             item {
                 Column(Modifier.offset(y = (-24).dp).clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surface).padding(20.dp)) {
+                    // Outlet Info
+                    if (item.outlets != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = item.outlets.logo_url,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    item.outlets.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    item.outlets.address ?: "",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(bottom = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+
                     Text(item.product_catalog?.name ?: "", style = MaterialTheme.typography.headlineMedium)
+                    
+                    if (item.discount > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "₹${item.price.toInt()}",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    textDecoration = TextDecoration.LineThrough,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Surface(color = Color(0xFFE53935).copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
+                                Text(
+                                    "${item.discount}% OFF",
+                                    color = Color(0xFFE53935),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("₹${item.price}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
+                        Text("₹${item.discountedPrice}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
                         if (item.is_free_delivery == true) {
                             Spacer(Modifier.width(12.dp))
                             Surface(color = Color(0xFF4CAF50).copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
@@ -148,18 +208,6 @@ fun DetailScreen(
 
                     Spacer(Modifier.height(12.dp))
                     Text(item.product_catalog?.description ?: "")
-                    Spacer(Modifier.height(20.dp))
-                    
-                    if (item.product_catalog?.nutritional_info != null) {
-                        Text("Nutritional Info", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(8.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val info = item.product_catalog.nutritional_info
-                            listOf("Protein" to info.protein, "Energy" to info.energy, "Carbs" to info.carbs, "Fat" to info.fat).forEach { (label, value) ->
-                                NutritionChip(label, value, Modifier.weight(1f))
-                            }
-                        }
-                    }
                     
                     Spacer(Modifier.height(24.dp))
                     
@@ -181,8 +229,6 @@ fun DetailScreen(
                         Text("Recommended for You", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(12.dp))
                         
-                        // Use a FlowRow or similar for grid effect inside LazyColumn
-                        // Or just chunk the items for a simple grid-like layout
                         recommended.chunked(2).forEach { rowItems ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -190,7 +236,12 @@ fun DetailScreen(
                             ) {
                                 rowItems.forEach { recItem ->
                                     Box(modifier = Modifier.weight(1f)) {
-                                        RecommendedCard(item = recItem, onClick = { onItemClick(recItem.id) })
+                                        com.jp.foodyvilla.presentation.screens.home.FoodGridCard(
+                                            item = recItem,
+                                            onAddToCart = { homeViewModel.updateCartItemQuantity(recItem) },
+                                            onClick = { onItemClick(recItem.id) },
+                                            homeViewModel = homeViewModel
+                                        )
                                     }
                                 }
                                 if (rowItems.size == 1) {
@@ -200,41 +251,6 @@ fun DetailScreen(
                             Spacer(Modifier.height(16.dp))
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RecommendedCard(item: OutletMenuItem, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column {
-            AsyncImage(
-                model = item.image.firstOrNull(),
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth().height(120.dp),
-                contentScale = ContentScale.Crop
-            )
-            Column(Modifier.padding(8.dp)) {
-                Text(
-                    item.product_catalog?.name ?: "N/A",
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    RatingChip(rating = item.rating.toDouble())
-                    Text("₹${item.price}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -266,20 +282,10 @@ fun ReviewItem(review: Review) {
 }
 
 @Composable
-fun NutritionChip(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f))) {
-        Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text(label, style = MaterialTheme.typography.labelSmall)
-        }
-    }
-}
-
-@Composable
 fun FoodImageSlider(images: List<String>) {
-    val pagerState = rememberPagerState(pageCount = { images.size })
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { images.size })
     Box {
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+        androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             AsyncImage(model = images[page], contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
         Row(Modifier.align(Alignment.BottomCenter).padding(8.dp)) {

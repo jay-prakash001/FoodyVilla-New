@@ -66,6 +66,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -263,16 +264,38 @@ fun FoodGridCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp),
+                    .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "₹${item.price}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "₹${item.discountedPrice.toInt()}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (item.discount > 0) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "₹${item.price.toInt()}",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    textDecoration = TextDecoration.LineThrough,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            )
+                        }
+                    }
+                    if (item.discount > 0) {
+                        Text(
+                            text = "${item.discount}% OFF",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = Color(0xFF43A047),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
                 if (!inCart) {
                     Surface(
@@ -520,15 +543,35 @@ fun FoodCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 10.dp),
+                    .padding(top = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    "₹${item.price}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Column {
+                    if (item.discount > 0) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "₹${item.price.toInt()}",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    textDecoration = TextDecoration.LineThrough,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "${item.discount}% OFF",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFE53935),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Text(
+                        "₹${item.discountedPrice.toInt()}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 if (!inCart) {
                     Button(onClick = onAddToCart, shape = RoundedCornerShape(12.dp)) {
                         Text("Add")

@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -233,7 +234,7 @@ fun FoodListItem(
                     text = item.product_catalog?.description ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
@@ -243,13 +244,41 @@ fun FoodListItem(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "₹${item.price}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
+                    Column {
+                        if (item.discount > 0) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "₹${item.price.toInt()}",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        textDecoration = TextDecoration.LineThrough,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "${item.discount}% OFF",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFE53935),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Text(
+                            text = "₹${item.discountedPrice.toInt()}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (item.is_free_delivery == true) {
+                            Text(
+                                text = "Free Delivery",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF43A047),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                  
                     if (!inCart) {
                         Surface(
                             modifier = Modifier
