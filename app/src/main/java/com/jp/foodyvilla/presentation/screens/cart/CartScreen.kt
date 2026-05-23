@@ -44,6 +44,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -79,6 +80,7 @@ import com.jp.foodyvilla.presentation.screens.home.QuantitySelector
 import com.jp.foodyvilla.presentation.screens.home.VegDot
 import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
 import com.jp.foodyvilla.presentation.utils.UiState
+import com.jp.foodyvilla.presentation.utils.isOutletOpen
 import com.razorpay.Checkout
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -163,6 +165,7 @@ fun CartScreen(
                 item {
                     OutletCartGroup(
                         outletName = outlet?.name ?: "Unknown Outlet",
+                        isOpen = isOutletOpen(outlet?.opens_at, outlet?.closes_at),
                         items = items,
                         onCheckout = { onCheckoutOutlet(outletId) },
                         onIncrement = { cartItem ->
@@ -184,6 +187,7 @@ fun CartScreen(
 @Composable
 fun OutletCartGroup(
     outletName: String,
+    isOpen: Boolean,
     items: List<CartItem>,
     onCheckout: () -> Unit,
     onIncrement: (CartItem) -> Unit,
@@ -200,12 +204,21 @@ fun OutletCartGroup(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = outletName,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Column {
+                    Text(
+                        text = outletName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isOpen) MaterialTheme.colorScheme.primary else Color.Gray
+                    )
+                    if (!isOpen) {
+                        Text(
+                            text = "Closed now",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
                 Text(
                     text = "${items.size} Items",
                     style = MaterialTheme.typography.bodyMedium,
@@ -223,29 +236,61 @@ fun OutletCartGroup(
                 Spacer(Modifier.height(8.dp))
             }
             Spacer(Modifier.height(8.dp))
-            val total = items.sumOf { it.totalPrice }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Total", style = MaterialTheme.typography.bodySmall)
-                    Text(
-                        "₹${"%.2f".format(total)}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-                Button(
-                    onClick = onCheckout,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+            val subtotal = items.sumOf { it.totalPrice }
+            val handling = items.sumOf { (it.outlet_menu_items?.handling_charges ?: 0.0) * it.qty }
+            val delivery = if (items.any { it.outlet_menu_items?.is_free_delivery == true }) 0.0 
+                           else items.maxOfOrNull { it.outlet_menu_items?.delivery_charges ?: 0.0 } ?: 0.0
+            val total = subtotal + handling + delivery
+
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                PriceRow("Subtotal", subtotal)
+                if (handling > 0) PriceRow("Handling Charges", handling)
+                if (delivery > 0) PriceRow("Delivery Charges", delivery) else if (items.any { it.outlet_menu_items?.is_free_delivery == true }) PriceRow("Delivery Charges", 0.0, isFree = true)
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Checkout")
+                    Column {
+                        Text("Grand Total", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "₹${"%.2f".format(total)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Button(
+                        onClick = onCheckout,
+                        enabled = isOpen,
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isOpen) MaterialTheme.colorScheme.primary else Color.Gray
+                        )
+                    ) {
+                        Text(if (isOpen) "Checkout" else "Closed")
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PriceRow(label: String, amount: Double, isFree: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            if (isFree) "FREE" else "₹${"%.2f".format(amount)}",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = if (isFree) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

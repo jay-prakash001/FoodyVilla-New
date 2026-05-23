@@ -238,18 +238,34 @@ fun DetailAddScreen(
             item {
                 Card(shape = RoundedCornerShape(16.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Items Summary", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(8.dp))
+                        Text("Bill Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(12.dp))
+                        
                         outletItems.forEach { item ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("${item.outlet_menu_items?.product_catalog?.name} x ${item.qty}")
-                                Text("₹${"%.2f".format(item.totalPrice)}")
+                            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("${item.outlet_menu_items?.product_catalog?.name} x ${item.qty}", style = MaterialTheme.typography.bodyMedium)
+                                Text("₹${"%.2f".format(item.totalPrice)}", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
-                        Divider(Modifier.padding(vertical = 8.dp))
+                        
+                        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                        
+                        val subtotal = outletItems.sumOf { it.totalPrice }
+                        val handling = outletItems.sumOf { (it.outlet_menu_items?.handling_charges ?: 0.0) * it.qty }
+                        val delivery = if (outletItems.any { it.outlet_menu_items?.is_free_delivery == true }) 0.0 
+                                       else outletItems.maxOfOrNull { it.outlet_menu_items?.delivery_charges ?: 0.0 } ?: 0.0
+                        val total = subtotal + handling + delivery
+
+                        PriceRow("Item Total", subtotal)
+                        if (handling > 0) PriceRow("Handling Charges", handling)
+                        if (delivery > 0) PriceRow("Delivery Charges", delivery) 
+                        else if (outletItems.any { it.outlet_menu_items?.is_free_delivery == true }) PriceRow("Delivery Charges", 0.0, isFree = true)
+                        
+                        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                        
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Total", fontWeight = FontWeight.Bold)
-                            Text("₹${"%.2f".format(outletItems.sumOf { it.totalPrice })}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("Grand Total", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                            Text("₹${"%.2f".format(total)}", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }

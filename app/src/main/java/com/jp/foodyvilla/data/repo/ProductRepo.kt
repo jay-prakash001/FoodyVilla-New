@@ -26,7 +26,11 @@ class ProductRepo(private val client: SupabaseClient) {
             )
             """.trimIndent()
                     )
-                )
+                ) {
+                    filter {
+                        eq("is_active", true)
+                    }
+                }
                 .decodeList<Outlet>()
 
             println("outlets data: $res")
@@ -69,6 +73,7 @@ class ProductRepo(private val client: SupabaseClient) {
                 ) {
                     filter {
                         eq("id", id)
+                        eq("is_active", true)
                     }
                 }
                 .decodeSingleOrNull<Outlet>()
@@ -105,7 +110,8 @@ class ProductRepo(private val client: SupabaseClient) {
                     Columns.raw(
                         """
                         *,
-                        product_catalog (*)
+                        product_catalog (*),
+                        outlets (*)
                         """.trimIndent()
                     )
                 ) {
@@ -114,7 +120,12 @@ class ProductRepo(private val client: SupabaseClient) {
                     }
                 }
                 .decodeSingleOrNull<OutletMenuItem>()
-            emit(res)
+
+            if (res?.outlets?.is_active == true) {
+                emit(res)
+            } else {
+                emit(null)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             emit(null)

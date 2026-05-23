@@ -37,6 +37,7 @@ import com.jp.foodyvilla.data.model.OutletMenuItem
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.home.RatingChip
 import com.jp.foodyvilla.presentation.screens.home.VegDot
+import com.jp.foodyvilla.presentation.utils.isOutletOpen
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -94,15 +95,22 @@ fun DetailScreen(
                         )
                         Spacer(Modifier.width(16.dp))
                         val inCart = homeState.cartItems.any { it.menu_item_id == item.id }
+                        val isOpen = isOutletOpen(item.outlets?.opens_at, item.outlets?.closes_at)
+                        
                         Button(
                             onClick = { 
                                 if (inCart) onCartClick()
                                 else homeViewModel.updateCartItemQuantity(item, state.quantity)
                             },
                             modifier = Modifier.weight(1f).height(52.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryRed)
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isOpen) primaryRed else Color.Gray),
+                            enabled = isOpen || inCart
                         ) {
-                            Text(if (inCart) "Go to Cart" else "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}")
+                            Text(
+                                if (!isOpen && !inCart) "Closed Now"
+                                else if (inCart) "Go to Cart" 
+                                else "Add to Cart • ₹${"%.2f".format(item.price * state.quantity)}"
+                            )
                         }
                     }
                 }
@@ -124,7 +132,20 @@ fun DetailScreen(
             item {
                 Column(Modifier.offset(y = (-24).dp).clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surface).padding(20.dp)) {
                     Text(item.product_catalog?.name ?: "", style = MaterialTheme.typography.headlineMedium)
-                    Text("₹${item.price}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("₹${item.price}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
+                        if (item.is_free_delivery == true) {
+                            Spacer(Modifier.width(12.dp))
+                            Surface(color = Color(0xFF4CAF50).copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
+                                Text("FREE DELIVERY", color = Color(0xFF4CAF50), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    
+                    if (item.handling_charges != null && item.handling_charges!! > 0) {
+                        Text("+ ₹${item.handling_charges} Handling Charges", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
                     Spacer(Modifier.height(12.dp))
                     Text(item.product_catalog?.description ?: "")
                     Spacer(Modifier.height(20.dp))

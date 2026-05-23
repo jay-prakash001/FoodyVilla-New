@@ -230,6 +230,21 @@ fun FoodGridCard(
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
                 )
+                if (item.is_free_delivery == true) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
+                        color = Color(0xFF4CAF50).copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            "FREE DELIVERY",
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(8.dp))
             Row(
@@ -467,6 +482,21 @@ fun FoodCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                 )
+                if (item.is_free_delivery == true) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+                        color = Color(0xFF4CAF50).copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            "FREE DELIVERY",
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
             Spacer(Modifier.height(10.dp))
             Row(

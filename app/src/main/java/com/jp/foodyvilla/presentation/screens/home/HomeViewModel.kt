@@ -17,6 +17,7 @@ import com.jp.foodyvilla.data.repo.OfferRepo
 import com.jp.foodyvilla.data.repo.OrderRepository
 import com.jp.foodyvilla.data.repo.ProductRepo
 import com.jp.foodyvilla.presentation.utils.UiState
+import com.jp.foodyvilla.presentation.utils.isOutletOpen
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow

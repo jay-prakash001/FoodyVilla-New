@@ -43,7 +43,11 @@ data class OutletMenuItem(
     val is_out_of_stock: Boolean = false,
     val rating: Float = 0f,
     val reviews_count: Int = 0,
-    val product_catalog: ProductCatalog? = null
+    val product_catalog: ProductCatalog? = null,
+    val outlets: Outlet? = null,
+    val handling_charges: Double? = 0.0,
+    val delivery_charges: Double? = 0.0,
+    val is_free_delivery: Boolean? = false
 )
 
 @Serializable
