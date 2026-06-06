@@ -37,7 +37,8 @@ data class HomeUiState(
     val selectedCategory: Long = -1L,
     val selectedOutletId: Long = -1L,
     val searchQuery: String = "",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val recommendations: List<OutletMenuItem> = emptyList()
 ) {
     val allItems: List<OutletMenuItem>
         get() = outlets.flatMap { it.outlet_menu_items ?: emptyList() }
@@ -134,6 +135,7 @@ class HomeViewModel(
                     long = user.long ?: 0.0
                 )
             }
+            filterRecommendation()
         }
     }
 
@@ -154,6 +156,7 @@ class HomeViewModel(
                 _orderState.update { state ->
                     state.copy(address = address, lat = location.first, long = location.second)
                 }
+                filterRecommendation()
             }
             result.onFailure { exception ->
                 _locationState.value = UiState.Error(Exception(exception))
@@ -161,14 +164,23 @@ class HomeViewModel(
         }
     }
 
+
     fun hasLocationPermission(): Boolean = locationRepository.hasLocationPermission()
     fun hasNotificationPermission(): Boolean = locationRepository.hasNotificationPermission()
     fun isGpsEnabled(): Boolean = locationRepository.isGpsEnabled()
+    fun checkLocationSettings(onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
+        locationRepository.checkLocationSettings()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
+    }
     
     val fcm = FirebaseMessaging.getInstance()
 
     init {
         loadData()
+        if (hasLocationPermission()) {
+            fetchCurrentLocation()
+        }
         fcm.subscribeToTopic("offers")
         fcm.subscribeToTopic("banners")
     }
@@ -212,7 +224,7 @@ class HomeViewModel(
         _purchasedProductIds.value = ids
     }
 
-    private fun loadData() {
+     fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             
@@ -364,11 +376,40 @@ class HomeViewModel(
             try {
                 productRepo.getOutletsWithMenu().collect { items ->
                     _uiState.update { it.copy(isLoading = false, outlets = items) }
+                    filterRecommendation()
                 }
             } catch (e: Exception) { }
         }
     }
 
+    fun filterRecommendation() {
+        val userLat = _orderState.value.lat
+        val userLng = _orderState.value.long
+
+        if (userLat == 0.0 && userLng == 0.0) return
+
+        val outlets = _uiState.value.outlets
+        if (outlets.isEmpty()) return
+
+        // Get all menu items from all outlets, sorted by distance of the outlet
+        val recommendedItems = outlets.flatMap { outlet ->
+            val distance = calculateDistance(userLat, userLng, outlet.lat, outlet.lng)
+            (outlet.outlet_menu_items ?: emptyList()).map { it to distance }
+        }.sortedBy { it.second }.map { it.first }
+
+        _uiState.update { it.copy(recommendations = recommendedItems, selectedOutletId = if (recommendedItems.isNotEmpty()) -2L else -1L) }
+    }
+
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val r = 6371 // Radius of the earth in km
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return r * c
+    }
     fun cancelOrder(order: OrderModel) {
         viewModelScope.launch {
             val productNames = order.order_items.map { 

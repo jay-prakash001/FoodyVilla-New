@@ -62,24 +62,38 @@ import org.koin.androidx.compose.koinViewModel
 fun MainScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
-    viewModel: HomeViewModel = koinViewModel()
+    viewModel: HomeViewModel
 ) {
     val context = LocalContext.current
 
     val notificationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        ActivityResultContracts.RequestMultiplePermissions()
     ) { isGranted ->
         // Handle result if needed
     }
+
+
 
     LaunchedEffect(Unit) {
         viewModel.getCartItems()
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (!viewModel.hasNotificationPermission()) {
-                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                notificationLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
             }
         }
+
+        if (!viewModel.hasLocationPermission()) {
+            notificationLauncher.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+        }
+
+        if( viewModel.hasLocationPermission()){
+            if(viewModel.isGpsEnabled()){
+                viewModel.fetchCurrentLocation()
+
+            }
+        }
+
     }
     val selectedPage = viewModel.selectedPage.collectAsStateWithLifecycle().value
     val homeState = viewModel.uiState.collectAsStateWithLifecycle().value
@@ -92,7 +106,6 @@ fun MainScreen(
     )
     val title = titles[selectedPage]
 
-//    HideSystemBars()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background, // Change from Transparent

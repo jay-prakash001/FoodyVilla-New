@@ -1,7 +1,13 @@
 package com.jp.foodyvilla.presentation.screens.home
 
+import android.Manifest
+import android.R
+import android.app.Activity
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,9 +80,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.google.android.gms.common.api.ResolvableApiException
 import com.jp.foodyvilla.data.model.Banner
 import com.jp.foodyvilla.data.model.Outlet
 import com.jp.foodyvilla.data.model.OutletMenuItem
+import com.jp.foodyvilla.presentation.utils.UiState
 import kotlinx.coroutines.delay
 
 @Composable
@@ -87,16 +95,65 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val locationState by viewModel.locationState.collectAsStateWithLifecycle()
     val colors = MaterialTheme.colorScheme
+    
 
-    // Real-time notification permission tracking
+    // Real-time permission and location tracking
     var isNotificationEnabled by remember { mutableStateOf(viewModel.hasNotificationPermission()) }
+    var isLocationEnabled by remember { mutableStateOf(viewModel.hasLocationPermission()) }
+    var isGpsEnabled by remember { mutableStateOf(viewModel.isGpsEnabled()) }
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    val gpsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            isGpsEnabled = true
+            viewModel.fetchCurrentLocation()
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        isLocationEnabled = granted
+        if (granted) {
+            viewModel.checkLocationSettings(
+                onSuccess = {
+                    isGpsEnabled = true
+                    viewModel.fetchCurrentLocation()
+                },
+                onFailure = { exception ->
+                    if (exception is ResolvableApiException) {
+                        try {
+                            val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution.intentSender).build()
+                            gpsLauncher.launch(intentSenderRequest)
+                        } catch (e: Exception) {
+                            // Ignore the error
+                        }
+                    }
+                }
+            )
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isNotificationEnabled = viewModel.hasNotificationPermission()
+                
+                val currentLocEnabled = viewModel.hasLocationPermission()
+                val currentGpsEnabled = viewModel.isGpsEnabled()
+                
+                if (currentLocEnabled != isLocationEnabled || currentGpsEnabled != isGpsEnabled) {
+                    isLocationEnabled = currentLocEnabled
+                    isGpsEnabled = currentGpsEnabled
+                    if (currentLocEnabled && currentGpsEnabled) {
+                        viewModel.fetchCurrentLocation()
+                    }
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -105,19 +162,57 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (state.allItems.isEmpty()) {
+            viewModel.loadData()
+        }
+
+        if (!viewModel.hasLocationPermission()) {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        } else {
+            viewModel.checkLocationSettings(
+                onSuccess = {
+                    isGpsEnabled = true
+                    viewModel.fetchCurrentLocation()
+                },
+                onFailure = { exception ->
+                    if (exception is ResolvableApiException) {
+                        try {
+                            val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution.intentSender).build()
+                            gpsLauncher.launch(intentSenderRequest)
+                        } catch (e: Exception) {
+                            // Ignore the error
+                        }
+                    }
+                }
+            )
+        }
+    }
+
     Scaffold(containerColor = colors.background) { padding ->
-        if (state.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            if (state.isLoading || locationState is UiState.Loading) {
+
+                Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(0.2f)), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+
                 CircularProgressIndicator(color = colors.primary)
-            }
-            return@Scaffold
+
+                    Text("Getting your nearest outlet...", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
+                }
+
         }
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = 100.dp),
             modifier = Modifier.fillMaxSize()
-        ) {
+        )
+        {
             // Hero section
             item(span = { GridItemSpan(2) }) {
                 HeroSection(
@@ -155,17 +250,18 @@ fun HomeScreen(
             }
 
             // Flat list of all products
-            if (state.filteredItems.isNotEmpty()) {
+            val itemsToShow = state.recommendations.ifEmpty { state.filteredItems }
+            if (itemsToShow.isNotEmpty()) {
                 item(span = { GridItemSpan(2) }) {
                     Text(
-                        "Products for You",
+                        if (state.recommendations.isNotEmpty()) "Recommended for You" else "Products for You",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
                     )
                 }
 
-                items(state.filteredItems) { item ->
+                items(itemsToShow) { item ->
                     FoodGridCard(
                         item = item,
                         onAddToCart = { viewModel.updateCartItemQuantity(item) },
@@ -190,7 +286,7 @@ fun HomeScreen(
                     }
                 }
             }
-        }
+        }}
     }
 }
 
@@ -701,7 +797,7 @@ fun RatingChip(rating: Double, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.9f)
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
     ) {
         Row(
             Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -715,6 +811,7 @@ fun RatingChip(rating: Double, modifier: Modifier = Modifier) {
             )
             Text(
                 "%.1f".format(rating),
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
             )

@@ -91,6 +91,16 @@ fun MenuScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
+                        if(state.recommendations.isNotEmpty()){
+                                item {
+                                    FilterChip(
+                                        selected = state.selectedOutletId == -2L,
+                                        onClick = { viewModel.selectOutlet(-2L) },
+                                        label = { Text("🎊 Recommended for You") }
+                                    )
+                                }
+                            }
+
                             item {
                                 FilterChip(
                                     selected = state.selectedOutletId == -1L,
@@ -129,33 +139,60 @@ fun MenuScreen(
         LazyColumn(
             contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = 100.dp)
         ) {
-            state.outlets.forEach { outlet ->
-                // Apply combined filters
-                val displayItems = outlet.outlet_menu_items?.filter { item ->
+            if (state.selectedOutletId == -2L) {
+                // Recommendation Mode: Show all recommended items filtered by category/search
+                val displayItems = state.recommendations.filter { item ->
                     val matchesCategory = state.selectedCategory == -1L ||
                             item.product_catalog?.category_id == state.selectedCategory
-
-                    val matchesOutlet = state.selectedOutletId == -1L ||
-                            outlet.id == state.selectedOutletId
 
                     val matchesSearch = state.searchQuery.isBlank() ||
                             item.product_catalog?.name?.contains(state.searchQuery, true) == true
 
-                    matchesCategory && matchesOutlet && matchesSearch
-                } ?: emptyList()
+                    matchesCategory && matchesSearch
+                }
 
-                if (displayItems.isNotEmpty()) {
-                    item { OutletHeader(outlet) }
+                items(displayItems, key = { it.id }) { item ->
+                    val outlet = state.outlets.find { it.id == item.outlet_id }
+                    FoodListItem(
+                        item = item,
+                        outletLogo = outlet?.logo_url,
+                        onAddToCart = { viewModel.updateCartItemQuantity(item) },
+                        onClick = { onItemClick(item.id) },
+                        homeViewModel = viewModel,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            } else {
+                // Regular Outlet Mode: Group by outlet
+                state.outlets.forEach { outlet ->
+                    val matchesOutlet = state.selectedOutletId == -1L ||
+                            outlet.id == state.selectedOutletId
 
-                    items(displayItems, key = { it.id }) { item ->
-                        FoodListItem(
-                            item = item,
-                            outletLogo = outlet.logo_url,
-                            onAddToCart = { viewModel.updateCartItemQuantity(item) },
-                            onClick = { onItemClick(item.id) },
-                            homeViewModel = viewModel,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                    if (matchesOutlet) {
+                        val displayItems = outlet.outlet_menu_items?.filter { item ->
+                            val matchesCategory = state.selectedCategory == -1L ||
+                                    item.product_catalog?.category_id == state.selectedCategory
+
+                            val matchesSearch = state.searchQuery.isBlank() ||
+                                    item.product_catalog?.name?.contains(state.searchQuery, true) == true
+
+                            matchesCategory && matchesSearch
+                        } ?: emptyList()
+
+                        if (displayItems.isNotEmpty()) {
+                            item { OutletHeader(outlet) }
+
+                            items(displayItems, key = { it.id }) { item ->
+                                FoodListItem(
+                                    item = item,
+                                    outletLogo = outlet.logo_url,
+                                    onAddToCart = { viewModel.updateCartItemQuantity(item) },
+                                    onClick = { onItemClick(item.id) },
+                                    homeViewModel = viewModel,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
