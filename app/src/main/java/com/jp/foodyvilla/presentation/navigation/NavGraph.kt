@@ -86,7 +86,7 @@ fun FoodyVillaNavGraph() {
             val detail: Screen.Detail = backStack.toRoute()
             DetailScreen(
                 itemId = detail.itemId,
-                onBack = { navController.popBackStack() },
+                onBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() },
 
                 onItemClick = { navController.navigate(Screen.Detail(it)) },
                 onCartClick = { navController.navigate(Screen.Cart) }, homeViewModel = homeViewModel
@@ -99,7 +99,7 @@ fun FoodyVillaNavGraph() {
 //
         composable<Screen.Cart> {
             CartScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() },
                 onBrowseMenu = { navController.navigate(Screen.Home) },
                 onCheckoutOutlet = { outletId ->
                     navController.navigate(Screen.DetailAdd(outletId))
@@ -113,7 +113,7 @@ fun FoodyVillaNavGraph() {
             val args: Screen.DetailAdd = backStack.toRoute()
             DetailAddScreen(
                 outletId = args.outletId,
-                onBack = { navController.popBackStack() },
+                onBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() },
                 onProceedToPayment = { outletId ->
                     navController.navigate(Screen.Payment(outletId))
                 },
@@ -126,7 +126,7 @@ fun FoodyVillaNavGraph() {
             val args: Screen.Payment = backStack.toRoute()
             PaymentScreen(
                 outletId = args.outletId,
-                onBack = { navController.popBackStack() },
+                onBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() },
                 onOrderSuccess = {
                     navController.navigate(Screen.Home) {
                         popUpTo(Screen.Home) { inclusive = true }
@@ -140,7 +140,7 @@ fun FoodyVillaNavGraph() {
 
         composable<Screen.CustomerSupport> {
             ContactUsScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() },
                 viewModel = homeViewModel
             )
         }
@@ -151,7 +151,7 @@ fun FoodyVillaNavGraph() {
                 orderId = args.orderId,
                 outletId = args.outletId,
                 viewModel = koinViewModel(),
-                onBack = { navController.popBackStack() }
+                onBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() }
             )
         }
 

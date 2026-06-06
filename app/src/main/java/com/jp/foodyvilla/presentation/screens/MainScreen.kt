@@ -87,13 +87,17 @@ fun MainScreen(
             notificationLauncher.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }
 
+
+
+    }
+
+    LaunchedEffect(viewModel.hasLocationPermission()) {
         if( viewModel.hasLocationPermission()){
             if(viewModel.isGpsEnabled()){
                 viewModel.fetchCurrentLocation()
 
             }
         }
-
     }
     val selectedPage = viewModel.selectedPage.collectAsStateWithLifecycle().value
     val homeState = viewModel.uiState.collectAsStateWithLifecycle().value

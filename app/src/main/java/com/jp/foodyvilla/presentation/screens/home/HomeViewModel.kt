@@ -386,6 +386,7 @@ class HomeViewModel(
         val userLat = _orderState.value.lat
         val userLng = _orderState.value.long
 
+        if (_uiState.value.recommendations.isNotEmpty()) return
         if (userLat == 0.0 && userLng == 0.0) return
 
         val outlets = _uiState.value.outlets

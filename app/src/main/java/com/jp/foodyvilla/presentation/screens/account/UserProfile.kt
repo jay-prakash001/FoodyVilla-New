@@ -250,7 +250,7 @@ fun ProfileContent(
                 Text("Update Profile", style = MaterialTheme.typography.titleMedium)
             }
         }
-        
+
         Spacer(Modifier.height(32.dp))
     }
 }

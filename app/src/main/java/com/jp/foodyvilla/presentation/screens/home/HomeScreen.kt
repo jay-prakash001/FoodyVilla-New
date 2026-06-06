@@ -1,7 +1,6 @@
 package com.jp.foodyvilla.presentation.screens.home
 
 import android.Manifest
-import android.R
 import android.app.Activity
 import android.content.Intent
 import android.provider.Settings
@@ -196,16 +195,7 @@ fun HomeScreen(
 
     Scaffold(containerColor = colors.background) { padding ->
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (state.isLoading || locationState is UiState.Loading) {
 
-                Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(0.2f)), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-
-                CircularProgressIndicator(color = colors.primary)
-
-                    Text("Getting your nearest outlet...", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
-                }
-
-        }
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -286,7 +276,20 @@ fun HomeScreen(
                     }
                 }
             }
-        }}
+        }
+
+
+            if (state.isLoading || (locationState is UiState.Loading && state.recommendations.isEmpty())) {
+
+                Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(0.2f)), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+
+                    CircularProgressIndicator(color = colors.primary)
+
+                    Text("Getting your nearest outlet...", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
+                }
+
+            }
+        }
     }
 }
 
@@ -620,7 +623,7 @@ fun FoodCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                 )
-                
+
                 // Outlet Mini Logo
                 val outlet = homeState.outlets.find { it.id == item.outlet_id }
                 if (outlet?.logo_url != null) {
