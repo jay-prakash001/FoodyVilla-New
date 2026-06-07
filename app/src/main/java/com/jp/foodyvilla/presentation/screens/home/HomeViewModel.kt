@@ -135,14 +135,17 @@ class HomeViewModel(
                     long = user.long ?: 0.0
                 )
             }
-            filterRecommendation()
+            filterRecommendation(forceUpdate = true)
         }
     }
 
     private val _locationState = MutableStateFlow<UiState<Pair<Double, Double>>>(UiState.Idle)
     val locationState = _locationState.asStateFlow()
 
-    fun fetchCurrentLocation() {
+    fun fetchCurrentLocation(force: Boolean = false) {
+        if (!force && _uiState.value.recommendations.isNotEmpty()) return
+        if (_locationState.value is UiState.Loading) return
+
         viewModelScope.launch {
             _locationState.value = UiState.Loading
             val result = locationRepository.fetchLocation()
@@ -156,7 +159,7 @@ class HomeViewModel(
                 _orderState.update { state ->
                     state.copy(address = address, lat = location.first, long = location.second)
                 }
-                filterRecommendation()
+                filterRecommendation(forceUpdate = true)
             }
             result.onFailure { exception ->
                 _locationState.value = UiState.Error(Exception(exception))
@@ -178,9 +181,6 @@ class HomeViewModel(
 
     init {
         loadData()
-        if (hasLocationPermission()) {
-            fetchCurrentLocation()
-        }
         fcm.subscribeToTopic("offers")
         fcm.subscribeToTopic("banners")
     }
@@ -376,17 +376,17 @@ class HomeViewModel(
             try {
                 productRepo.getOutletsWithMenu().collect { items ->
                     _uiState.update { it.copy(isLoading = false, outlets = items) }
-                    filterRecommendation()
+                    filterRecommendation(forceUpdate = true)
                 }
             } catch (e: Exception) { }
         }
     }
 
-    fun filterRecommendation() {
+    fun filterRecommendation(forceUpdate: Boolean = false) {
         val userLat = _orderState.value.lat
         val userLng = _orderState.value.long
 
-        if (_uiState.value.recommendations.isNotEmpty()) return
+        if (!forceUpdate && _uiState.value.recommendations.isNotEmpty()) return
         if (userLat == 0.0 && userLng == 0.0) return
 
         val outlets = _uiState.value.outlets

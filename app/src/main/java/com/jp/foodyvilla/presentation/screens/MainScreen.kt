@@ -76,29 +76,8 @@ fun MainScreen(
 
     LaunchedEffect(Unit) {
         viewModel.getCartItems()
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (!viewModel.hasNotificationPermission()) {
-                notificationLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
-            }
-        }
-
-        if (!viewModel.hasLocationPermission()) {
-            notificationLauncher.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-        }
-
-
-
     }
 
-    LaunchedEffect(viewModel.hasLocationPermission()) {
-        if( viewModel.hasLocationPermission()){
-            if(viewModel.isGpsEnabled()){
-                viewModel.fetchCurrentLocation()
-
-            }
-        }
-    }
     val selectedPage = viewModel.selectedPage.collectAsStateWithLifecycle().value
     val homeState = viewModel.uiState.collectAsStateWithLifecycle().value
     val titles = listOf(

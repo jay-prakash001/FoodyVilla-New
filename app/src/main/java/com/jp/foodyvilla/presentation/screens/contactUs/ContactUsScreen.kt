@@ -46,7 +46,7 @@ private const val WEBSITE_URL = "https://www.foodyvilla.in"
 const val MAP_LAT = 20.348417
 const val MAP_LNG = 81.959333
 const val MAP_LABEL = "Foodyvilla+Nagri+Chhattisgarh"
-private const val INSTAGRAM_URL = "https://instagram.com/foodyvilla_nagri"
+private const val INSTAGRAM_URL = "https://instagram.com/mrfoodyvilla"
 private const val HERO_IMAGE_URL = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1000&auto=format&fit=crop"
 
 // ─── DATA MODELS ────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ fun ContactUsScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.surface)
         ) {
-            HeroHeader()
+//            HeroHeader()
 
             Column(
                 modifier = Modifier

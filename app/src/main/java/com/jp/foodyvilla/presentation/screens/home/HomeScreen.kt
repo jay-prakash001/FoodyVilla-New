@@ -2,7 +2,11 @@ package com.jp.foodyvilla.presentation.screens.home
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -37,10 +41,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -75,6 +81,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -97,11 +104,16 @@ fun HomeScreen(
     val locationState by viewModel.locationState.collectAsStateWithLifecycle()
     val colors = MaterialTheme.colorScheme
     
-
     // Real-time permission and location tracking
     var isNotificationEnabled by remember { mutableStateOf(viewModel.hasNotificationPermission()) }
     var isLocationEnabled by remember { mutableStateOf(viewModel.hasLocationPermission()) }
     var isGpsEnabled by remember { mutableStateOf(viewModel.isGpsEnabled()) }
+    
+    var showLocationRationale by remember { mutableStateOf(false) }
+    var locationPermanentlyDenied by remember { mutableStateOf(false) }
+
+    var showNotificationRationale by remember { mutableStateOf(false) }
+
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val gpsLauncher = rememberLauncherForActivityResult(
@@ -109,8 +121,14 @@ fun HomeScreen(
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             isGpsEnabled = true
-            viewModel.fetchCurrentLocation()
+            viewModel.fetchCurrentLocation(force = true)
         }
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        isNotificationEnabled = granted
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -119,22 +137,33 @@ fun HomeScreen(
         val granted = permissions.values.all { it }
         isLocationEnabled = granted
         if (granted) {
+            locationPermanentlyDenied = false
             viewModel.checkLocationSettings(
                 onSuccess = {
                     isGpsEnabled = true
-                    viewModel.fetchCurrentLocation()
+                    viewModel.fetchCurrentLocation(force = true)
                 },
                 onFailure = { exception ->
                     if (exception is ResolvableApiException) {
                         try {
                             val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution.intentSender).build()
                             gpsLauncher.launch(intentSenderRequest)
-                        } catch (e: Exception) {
-                            // Ignore the error
-                        }
+                        } catch (e: Exception) { }
                     }
                 }
             )
+        } else {
+            val activity = context.findActivity()
+            if (activity != null) {
+                val showRationale = ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_FINE_LOCATION)
+                if (showRationale) {
+                    showLocationRationale = true
+                    locationPermanentlyDenied = false
+                } else {
+                    locationPermanentlyDenied = true
+                    showLocationRationale = false
+                }
+            }
         }
     }
 
@@ -145,12 +174,17 @@ fun HomeScreen(
                 
                 val currentLocEnabled = viewModel.hasLocationPermission()
                 val currentGpsEnabled = viewModel.isGpsEnabled()
-                
+
+                if (currentLocEnabled) {
+                    locationPermanentlyDenied = false
+                    showLocationRationale = false
+                }
+
                 if (currentLocEnabled != isLocationEnabled || currentGpsEnabled != isGpsEnabled) {
                     isLocationEnabled = currentLocEnabled
                     isGpsEnabled = currentGpsEnabled
                     if (currentLocEnabled && currentGpsEnabled) {
-                        viewModel.fetchCurrentLocation()
+                        viewModel.fetchCurrentLocation(force = true)
                     }
                 }
             }
@@ -166,13 +200,37 @@ fun HomeScreen(
             viewModel.loadData()
         }
 
+        // Handle Notification Permission Rationale
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!viewModel.hasNotificationPermission()) {
+                val activity = context.findActivity()
+                if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)) {
+                    showNotificationRationale = true
+                } else {
+                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+
+        delay(1500)
+
+        // Handle Location Permission Rationale
         if (!viewModel.hasLocationPermission()) {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
+            val activity = context.findActivity()
+            val showRationale = activity?.let { 
+                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.ACCESS_FINE_LOCATION) 
+            } ?: false
+            
+            if (showRationale) {
+                showLocationRationale = true
+            } else {
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
                 )
-            )
+            }
         } else {
             viewModel.checkLocationSettings(
                 onSuccess = {
@@ -184,13 +242,60 @@ fun HomeScreen(
                         try {
                             val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution.intentSender).build()
                             gpsLauncher.launch(intentSenderRequest)
-                        } catch (e: Exception) {
-                            // Ignore the error
-                        }
+                        } catch (e: Exception) { }
                     }
                 }
             )
         }
+    }
+
+    if (showNotificationRationale) {
+        AlertDialog(
+            onDismissRequest = { showNotificationRationale = false },
+            title = { Text("Notifications Needed") },
+            text = { Text("FoodyVilla would like to send you notifications about your order status and exclusive offers.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showNotificationRationale = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }) {
+                    Text("Allow")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNotificationRationale = false }) {
+                    Text("No thanks")
+                }
+            }
+        )
+    }
+
+    if (showLocationRationale) {
+        AlertDialog(
+            onDismissRequest = { showLocationRationale = false },
+            title = { Text("Location Access Needed") },
+            text = { Text("FoodyVilla needs your location to show the nearest outlets and food recommendations for you.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLocationRationale = false
+                    permissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                }) {
+                    Text("Grant Permission")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLocationRationale = false }) {
+                    Text("Dismiss")
+                }
+            }
+        )
     }
 
     Scaffold(containerColor = colors.background) { padding ->
@@ -230,8 +335,28 @@ fun HomeScreen(
                 item(span = { GridItemSpan(2) }) {
                     NotificationPermissionBanner(
                         onEnable = {
-                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                }
+                            } else {
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                }
+                            }
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+            }
+
+            // Location Permission Banner (If permanently denied)
+            if (locationPermanentlyDenied && !isLocationEnabled) {
+                item(span = { GridItemSpan(2) }) {
+                    LocationPermissionBanner(
+                        onEnable = {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
                             }
                             context.startActivity(intent)
                         }
@@ -288,6 +413,53 @@ fun HomeScreen(
                     Text("Getting your nearest outlet...", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
                 }
 
+            }
+        }
+    }
+}
+
+fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
+}
+
+@Composable
+fun LocationPermissionBanner(onEnable: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.LocationOn,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Location Access Required",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    "Please enable location in settings to see nearby outlets and get recommendations.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            TextButton(onClick = onEnable) {
+                Text("Settings")
             }
         }
     }

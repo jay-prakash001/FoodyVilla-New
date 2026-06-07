@@ -193,7 +193,7 @@ fun DetailScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("₹${item.discountedPrice}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
+                        Text("₹${item.discountedPrice.toInt()}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
                         if (item.is_free_delivery == true) {
                             Spacer(Modifier.width(12.dp))
                             Surface(color = Color(0xFF4CAF50).copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
