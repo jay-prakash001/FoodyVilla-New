@@ -389,7 +389,6 @@ fun initiatePayment(
 
         checkout.open(context as Activity, options)
     } catch (e: Exception) {
-        println("Payment Error $e")
     }
 
 }

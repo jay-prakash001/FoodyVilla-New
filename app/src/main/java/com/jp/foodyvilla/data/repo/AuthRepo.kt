@@ -64,7 +64,6 @@ class AuthRepo(
                 ignoreUnknownKeys = true
             }.decodeFromString<LoginResponse>(bodyString)
 
-            println("Parsed response $loginResponse")
 
             // ❌ API failure
             if (!loginResponse.success) {
@@ -107,7 +106,6 @@ class AuthRepo(
 
     fun signInWithSupabase(idToken: String): Flow<UiState<UserInfo>> = flow {
 
-        println("Token : $idToken")
         emit(UiState.Loading)
         try {
             supabase.auth.signInWith(IDToken) {
@@ -121,10 +119,8 @@ class AuthRepo(
             } else {
                 emit(UiState.Error(Exception("User not found")))
             }
-            Log.d("SupabaseAuth", "Logged in: ${user?.email}")
 
         } catch (e: Exception) {
-            Log.e("SupabaseAuth", "Error: ${e.message}")
             emit(UiState.Error(e))
         }
     }
@@ -141,7 +137,6 @@ class AuthRepo(
                 .filter { it !is SessionStatus.Initializing }
                 .map { status ->
 
-                    println("is Logged in $status")
 
                     when (status) {
 
@@ -161,7 +156,6 @@ class AuthRepo(
 
         } catch (e: Exception) {
 
-            println("Login Check Error: ${e.message}")
 
             emit(
                 UiState.Error(

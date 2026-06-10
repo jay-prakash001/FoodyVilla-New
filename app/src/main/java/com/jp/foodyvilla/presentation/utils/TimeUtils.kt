@@ -21,10 +21,8 @@ fun isOutletOpen(opensAt: String?, closesAt: String?): Boolean {
             now.isAfter(open) && now.isBefore(close)
         }
     } catch (e: DateTimeParseException) {
-        e.printStackTrace()
         true // Fallback to true if we can't parse
     } catch (e: Exception) {
-        e.printStackTrace()
         true
     }
 }

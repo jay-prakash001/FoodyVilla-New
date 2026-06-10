@@ -18,7 +18,6 @@ class OfferRepo(private val client : SupabaseClient) {
 
             emit(res)
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(emptyList())
         }
     }
@@ -31,9 +30,7 @@ class OfferRepo(private val client : SupabaseClient) {
                 .decodeList<Banner>()
 
             emit(res)
-            println("BAnners res $res")
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(emptyList())
         }
     }

@@ -54,7 +54,6 @@ class ReviewsViewModel(
         viewModelScope.launch {
             repo.getReviews().collect { reviews ->
 
-                println("REviews : $reviews")
                 _uiState.value = ReviewsUiState(
                     isLoading = false,
                     reviews = reviews

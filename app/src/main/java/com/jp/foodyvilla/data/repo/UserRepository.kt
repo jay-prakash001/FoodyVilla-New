@@ -36,7 +36,7 @@ class UserRepository(private val supabase: SupabaseClient) {
             }
             .decodeSingleOrNull<UserProfile>()
 
-        println("User $response")
+
          if(response == null){
              emit(UiState.Error(Exception("User Not found")))
              return@flow
@@ -62,7 +62,6 @@ class UserRepository(private val supabase: SupabaseClient) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 

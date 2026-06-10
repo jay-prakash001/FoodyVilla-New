@@ -110,7 +110,6 @@ fun ContactUsScreen(
                        try {
                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(INSTAGRAM_URL)))
                        } catch (e: Exception) {
-                           e.printStackTrace()
                        }
                    }) {
                        Icon(Icons.Rounded.CameraAlt, contentDescription = "Instagram")

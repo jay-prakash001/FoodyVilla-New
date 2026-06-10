@@ -25,7 +25,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
         viewModelScope.launch {
 
             val user = userRepository.getCurrentUserProfile()
-            println("ViewModel user $user")
         }
     }
 
@@ -56,7 +55,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
         isLoggedIn()
         viewModelScope.launch {
             userRepository.getCurrentUserProfile().collectLatest {
-                println("User $it")
             }
         }
         getUserProfile()
@@ -71,7 +69,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
          authRepo.isLoggedIn().collectLatest {
              _isLoggedIn.value = it
          }
-            println("Login status : ${authRepo.isLoggedIn()}    ${_isLoggedIn.value}")
         }
     }
 
@@ -79,7 +76,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
         viewModelScope.launch {
             authRepo.loginWithOtp("+91${phoneNumber.value}").collectLatest {
 
-                println("Login res $it")
                 _getOtpState.value = it
 
             }
@@ -102,7 +98,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
         viewModelScope.launch {
             authRepo.loginWithOtp("+91${phoneNumber.value}", otp).collectLatest {
 
-                println("Login res $it")
                 _loginUiState.value = it
                 if (it is UiState.Success) {
                     _isLoggedIn.value = UiState.Success(true)
@@ -121,7 +116,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
                 userRepository.updateFcmToken(token)
 
             } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
     }
@@ -153,7 +147,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
     fun signInWithSupabase(idToken: String) {
         viewModelScope.launch {
             authRepo.signInWithSupabase(idToken).collectLatest {
-                println("Login Res $it")
             }
         }
     }
@@ -180,7 +173,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
 
             val result = locationRepository.fetchLocation()
 
-            println("Location fetch $result")
             result.onSuccess { location ->
 
                 _locationState.value = UiState.Success(location)
@@ -190,7 +182,6 @@ class LoginViewModel(private val authRepo: AuthRepo, private val userRepository:
                         longitude = location.second
                     )
 
-                println("Location address fetch $addressResult")
 
 
                 val address = addressResult.getOrNull() ?: ""

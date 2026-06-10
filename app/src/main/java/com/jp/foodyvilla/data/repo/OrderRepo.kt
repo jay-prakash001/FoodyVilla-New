@@ -99,11 +99,9 @@ class OrderRepository(
                 )
                 supabase.functions.invoke("notify_outlet", notifyRequest)
             } catch (e: Exception) {
-                e.printStackTrace()
                 // Don't fail the whole order if notification fails
             }
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(UiState.Error(Exception(e.message ?: "Order failed")))
         }
     }
@@ -142,7 +140,6 @@ class OrderRepository(
             supabase.postgrest["payments"].insert(paymentData)
             emit(UiState.Success(true))
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(UiState.Error(e))
         }
     }
@@ -166,7 +163,6 @@ class OrderRepository(
                 )
                 supabase.functions.invoke("notify_outlet", notifyRequest)
             } catch (e: Exception) {
-                e.printStackTrace()
             }
         } catch (e: Exception) {
             emit(UiState.Error(e))

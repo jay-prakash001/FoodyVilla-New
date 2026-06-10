@@ -1,6 +1,8 @@
 package com.jp.foodyvilla.presentation.screens.login
 
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -10,6 +12,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -390,27 +393,45 @@ fun MobileLoginScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
                         Text(
-                            "Terms",
+                            text = "Terms",
+                            modifier = Modifier.clickable {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://foodyvilla.github.io/Web/")
+                                )
+                                context.startActivity(intent)
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 textDecoration = TextDecoration.Underline
                             ),
                             color = MaterialTheme.colorScheme.primary
                         )
+
                         Text(
-                            " & ",
+                            text = " & ",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
                         Text(
-                            "Privacy Policy",
+                            text = "Privacy Policy",
+                            modifier = Modifier.clickable {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://foodyvilla.github.io/Web/")
+                                )
+                                context.startActivity(intent)
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 textDecoration = TextDecoration.Underline
                             ),
                             color = MaterialTheme.colorScheme.primary
                         )
+
                     }
                 }
             }

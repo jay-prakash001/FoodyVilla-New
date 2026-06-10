@@ -8,9 +8,7 @@ fun subscribeToTopic(topic: String) {
         .subscribeToTopic(topic)
         .addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                Log.d("FCM", "Subscribed to $topic")
             } else {
-                Log.d("FCM", "Subscription failed")
             }
         }
 }

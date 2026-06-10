@@ -46,7 +46,6 @@ class CartRepository(
             val customerId = getCustomerId()
                 ?: throw Exception("User not found")
 
-            println("Adding to cart: customerId=$customerId, menuItemId=$menuItemId, outletId=$outletId, qty=$qty")
 
             val existing = supabase.postgrest["cart"]
                 .select {
@@ -68,7 +67,6 @@ class CartRepository(
                             qty = qty
                         )
                     )
-                    println("Inserted new cart item")
                 }
             } else {
                 val cartItem = existing.first()
@@ -79,7 +77,6 @@ class CartRepository(
                                 eq("id", cartItem.id)
                             }
                         }
-                    println("Deleted cart item")
                 } else {
                     supabase.postgrest["cart"]
                         .update(
@@ -89,15 +86,12 @@ class CartRepository(
                                 eq("id", cartItem.id)
                             }
                         }
-                    println("Updated cart item qty to $qty")
                 }
             }
 
             emit(UiState.Success("Cart updated"))
 
         } catch (e: Exception) {
-            e.printStackTrace()
-            println("Cart Update Error: ${e.message}")
             emit(UiState.Error(Exception(e.message ?: "Unknown error")))
         }
     }

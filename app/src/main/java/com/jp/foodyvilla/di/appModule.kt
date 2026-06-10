@@ -38,8 +38,6 @@ val appModule = module{
     val supabaseKey = "sb_publishable_P2vCR3YTVxyHShA8Gbb0RQ_HxXAGqZ-"
     single {
         createSupabaseClient(
-//            supabaseUrl = "https://mzeajzfhjovwyuotiywx.supabase.co",
-//            supabaseKey = "sb_publishable_C0Dz4fVE-_YjQIHLHqMbQQ_EWWuskzq"
 
             supabaseUrl = supabaseUrl,
             supabaseKey = supabaseKey

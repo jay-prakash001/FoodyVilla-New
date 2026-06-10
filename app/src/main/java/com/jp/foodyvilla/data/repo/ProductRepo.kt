@@ -37,11 +37,9 @@ class ProductRepo(private val client: SupabaseClient) {
                 }
                 .decodeList<Outlet>()
 
-            println("outlets data: $res")
+
             emit(res)
         } catch (e: Exception) {
-            e.printStackTrace()
-            println("error fetching outlets: $e")
             emit(emptyList())
         }
     }
@@ -58,7 +56,6 @@ class ProductRepo(private val client: SupabaseClient) {
                 .decodeList<com.jp.foodyvilla.data.model.Category>()
             emit(res)
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(emptyList())
         }
     }
@@ -85,7 +82,6 @@ class ProductRepo(private val client: SupabaseClient) {
 
             emit(res)
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(null)
         }
     }
@@ -102,7 +98,6 @@ class ProductRepo(private val client: SupabaseClient) {
                 .decodeList<Review>()
             emit(res)
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(emptyList())
         }
     }
@@ -133,7 +128,6 @@ class ProductRepo(private val client: SupabaseClient) {
                 emit(null)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(null)
         }
     }

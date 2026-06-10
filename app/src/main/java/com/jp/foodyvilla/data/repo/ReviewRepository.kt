@@ -54,7 +54,6 @@ class ReviewRepository(
                 .decodeList<Review>()
             emit(res)
         } catch (e: Exception) {
-            e.printStackTrace()
             emit(emptyList())
         }
     }

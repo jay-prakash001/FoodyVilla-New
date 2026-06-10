@@ -57,8 +57,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         Checkout.clearUserData(this)
     }
     override fun onPaymentSuccess(razorpayPaymentId: String?, paymentData: PaymentData?) {
-       println("Success Payment $razorpayPaymentId")
-        println("Success Data $paymentData")
+
 
         viewModel.onPaymentSuccess(
             razorpayPaymentId = razorpayPaymentId,
@@ -68,9 +67,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
 
     override fun onPaymentError(errorCode: Int, errorDescription: String?, p2: PaymentData?) {
-        println("Error Payment $errorCode   $errorDescription")
 
-        println("Error Data $p2")
 
         viewModel.onPaymentError(
             errorCode = errorCode,

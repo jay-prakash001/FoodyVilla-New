@@ -37,7 +37,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             try {
                 userRepository.updateFcmToken(token)
             } catch (e: Exception) {
-                Log.e("FCM", "Failed to update token", e)
             }
         }
     }
@@ -45,7 +44,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        Log.d("FCM", "Message received: $remoteMessage")
 
         val title = remoteMessage.data["title"] ?: "FoodyVilla"
         val body = remoteMessage.data["message"] ?: ""
@@ -123,7 +121,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 builder.setLargeIcon(bitmap)
 
             } catch (e: Exception) {
-                e.printStackTrace()
             }
         }
 
