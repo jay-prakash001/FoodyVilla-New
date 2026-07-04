@@ -213,7 +213,7 @@ fun OrderCard(order: OrderModel, onCancel: () -> Unit, onAddReview: (Long) -> Un
                 Column {
                     Text("Total Amount", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     Text(
-                        text = "₹${totalAmount}",
+                        text = "₹%.2f".format(totalAmount),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary

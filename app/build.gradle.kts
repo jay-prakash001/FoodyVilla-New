@@ -15,8 +15,8 @@ android {
         applicationId = "com.jp.foodyvilla"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1001
-        versionName = "1.0.1"
+        versionCode = 1003
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -95,7 +95,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt:$supabaseVersion")
     implementation("io.github.jan-tennert.supabase:storage-kt:$supabaseVersion")
     implementation("io.github.jan-tennert.supabase:functions-kt:${supabaseVersion}")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:${supabaseVersion}") // or latest
+    implementation("io.github.jan-tennert.supabase:realtime-kt:${supabaseVersion}")
 
     // Required
     implementation("io.ktor:ktor-client-okhttp:3.4.2")

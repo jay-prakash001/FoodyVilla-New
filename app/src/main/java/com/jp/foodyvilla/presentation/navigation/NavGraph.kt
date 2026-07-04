@@ -20,7 +20,6 @@ import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
 import com.jp.foodyvilla.presentation.screens.login.LoginViewModel
 import com.jp.foodyvilla.presentation.screens.login.MobileLoginScreen
 import com.jp.foodyvilla.presentation.screens.login.OtpVerificationScreen
-import com.jp.foodyvilla.presentation.screens.menuOnline.OrderOnlineScreen
 import com.jp.foodyvilla.presentation.screens.reviews.AddReviewScreen
 import com.jp.foodyvilla.presentation.screens.splash.SplashScreen
 import org.koin.androidx.compose.koinViewModel
@@ -30,10 +29,7 @@ fun FoodyVillaNavGraph() {
     val navController = rememberNavController()
     val homeViewModel = koinViewModel<HomeViewModel>()
     val loginViewModel = koinViewModel<LoginViewModel>()
-    val context = LocalContext.current
-    val isLoggedIn = loginViewModel.isLoggedIn.collectAsStateWithLifecycle().value
 
-    val homeState = homeViewModel.uiState.collectAsStateWithLifecycle().value
 
 
     NavHost(
@@ -68,7 +64,6 @@ fun FoodyVillaNavGraph() {
                 navController = navController,
                 onVerify = {
                     loginViewModel.login(otp = it)
-//                    navController.navigate(Screen.Home)
                 },
             ) {
                 loginViewModel.updateOtp("")
@@ -93,10 +88,8 @@ fun FoodyVillaNavGraph() {
             )
         }
 
-        composable<Screen.OnLineMenu> { backStack ->
-            OrderOnlineScreen(onBackClick = { navController.navigateUp() })
-        }
-//
+
+
         composable<Screen.Cart> {
             CartScreen(
                 onBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() },
@@ -156,29 +149,7 @@ fun FoodyVillaNavGraph() {
         }
 
 
-//
-//        composable<Screen.Login> {
-//            LoginScreen(
-//                onLoginSuccess = {
-//                    navController.navigate(Screen.Home) {
-//                        popUpTo(Screen.Login) { inclusive = true }
-//                    }
-//                },
-//                onNavigateToRegister = { navController.navigate(Screen.Register) }
-//            )
-//        }
-//
-//        composable<Screen.Register> {
-//            RegisterScreen(
-//                onRegisterSuccess = {
-//                    navController.navigate(Screen.Home) {
-//                        popUpTo(Screen.Register) { inclusive = true }
-//                    }
-//                },
-//                onNavigateToLogin = { navController.popBackStack() }
-//            )
-//        }
-//
+
         composable<Screen.Profile> {
             ProfileScreen(
                 viewModel = loginViewModel,

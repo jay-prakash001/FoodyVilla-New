@@ -15,11 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.jp.foodyvilla.presentation.navigation.FoodyVillaNavGraph
 import com.jp.foodyvilla.presentation.screens.home.HomeViewModel
-import com.jp.foodyvilla.presentation.screens.login.GoogleSignInScreen
-import com.jp.foodyvilla.presentation.screens.login.MobileLoginScreen
-import com.jp.foodyvilla.presentation.screens.login.OtpVerificationScreen
-import com.jp.foodyvilla.presentation.test.CheckoutScreen
-import com.jp.foodyvilla.presentation.test.CheckoutViewModel
+
 import com.jp.foodyvilla.presentation.utils.HideSystemBars
 import com.jp.foodyvilla.ui.theme.AppTheme
 import com.razorpay.Checkout

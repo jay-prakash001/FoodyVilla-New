@@ -100,7 +100,12 @@ fun ProfileScreen(
                     }
                 }
             }
-            else -> {}
+            else -> {
+
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center){
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
         }
     }
 }
