@@ -15,14 +15,14 @@ data class ProductCatalog(
     val id: Long = 0,
     val created_at: String = "",
     val name: String = "",
-    val description: String = "",
+    val description: String? = "",
 
     val category_id: Long? = null,
     val categories: Category? = null,
 
-    val is_veg: Boolean = true,
-    val is_vegan: Boolean = false,
-    val is_bestseller: Boolean = false,
+    val is_veg: Boolean? = true,
+    val is_vegan: Boolean? = false,
+    val is_bestseller: Boolean? = false,
 
     val nutritional_info: NutritionalInfo = NutritionalInfo(),
 

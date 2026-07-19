@@ -40,6 +40,8 @@ class ProductRepo(private val client: SupabaseClient) {
 
             emit(res)
         } catch (e: Exception) {
+
+            println(" product fetch error $e")
             emit(emptyList())
         }
     }
