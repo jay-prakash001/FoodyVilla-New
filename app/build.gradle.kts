@@ -110,5 +110,6 @@ dependencies {
     //location
     implementation("com.google.android.gms:play-services-location:21.0.1")
     // razorpay
-    implementation("com.razorpay:checkout:1.6.33")
+//    implementation("com.razorpay:checkout:1.6.33")
+    implementation("com.razorpay:checkout:1.6.41")
 }

@@ -206,27 +206,28 @@ fun ZomatoCartBar(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(.9f)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .fillMaxWidth(0.9f)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
+                    .height(56.dp) // Scaled down from 80.dp (~30% thinner)
                     .clickable { onClick() },
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = barColor
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Left — stacked item thumbnails
                     Row(
-                        modifier = Modifier.height(60.dp),
+                        modifier = Modifier.height(40.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         items.take(3).forEachIndexed { index, imageUrl ->
@@ -235,8 +236,8 @@ fun ZomatoCartBar(
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .size(60.dp)
-                                    .offset(x = (-30 * index).dp)
+                                    .size(40.dp) // Scaled down from 60.dp
+                                    .offset(x = (-18 * index).dp) // Scaled overlap
                                     .zIndex((5 - index).toFloat())
                                     .border(2.dp, barColor, CircleShape)
                                     .clip(CircleShape)
@@ -247,7 +248,7 @@ fun ZomatoCartBar(
                     // Center — "View Cart"
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = "View Cart",
@@ -273,7 +274,7 @@ fun ZomatoCartBar(
                             imageVector = Icons.Default.ArrowForwardIos,
                             contentDescription = null,
                             tint = contentColor,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(11.dp)
                         )
                     }
                 }

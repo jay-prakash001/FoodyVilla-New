@@ -10,12 +10,12 @@ import androidx.compose.ui.graphics.Color
 // LIGHT THEME
 // ============================================================
 
-val primaryLight = Color(0xFFFF7900)
+val primaryLight = Color(0xFFFF5722)
 val onPrimaryLight = Color(0xFFFFFFFF)
 val primaryContainerLight = Color(0xFFFFDCC2)
 val onPrimaryContainerLight = Color(0xFF2D1600)
 
-val secondaryLight = Color(0xFF009B45)
+val secondaryLight = Color(0xFF2CC733)
 val onSecondaryLight = Color(0xFFFFFFFF)
 val secondaryContainerLight = Color(0xFFC0F1CC)
 val onSecondaryContainerLight = Color(0xFF00210C)
