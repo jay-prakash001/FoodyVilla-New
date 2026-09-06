@@ -11,6 +11,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,25 +39,28 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Headset
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,10 +76,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
@@ -88,6 +95,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.google.android.gms.common.api.ResolvableApiException
 import com.jp.foodyvilla.data.model.Banner
+import com.jp.foodyvilla.data.model.Category
 import com.jp.foodyvilla.data.model.Outlet
 import com.jp.foodyvilla.data.model.OutletMenuItem
 import com.jp.foodyvilla.presentation.utils.UiState
@@ -98,17 +106,20 @@ fun HomeScreen(
     onItemClick: (Long) -> Unit,
     onMenuClick: () -> Unit = {},
     viewModel: HomeViewModel,
+    onSupportClick: () -> Unit = {},
+    onCartClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val locationState by viewModel.locationState.collectAsStateWithLifecycle()
     val colors = MaterialTheme.colorScheme
-    
+
     // Real-time permission and location tracking
     var isNotificationEnabled by remember { mutableStateOf(viewModel.hasNotificationPermission()) }
     var isLocationEnabled by remember { mutableStateOf(viewModel.hasLocationPermission()) }
     var isGpsEnabled by remember { mutableStateOf(viewModel.isGpsEnabled()) }
-    
+
     var showLocationRationale by remember { mutableStateOf(false) }
     var locationPermanentlyDenied by remember { mutableStateOf(false) }
 
@@ -171,7 +182,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isNotificationEnabled = viewModel.hasNotificationPermission()
-                
+
                 val currentLocEnabled = viewModel.hasLocationPermission()
                 val currentGpsEnabled = viewModel.isGpsEnabled()
 
@@ -217,10 +228,10 @@ fun HomeScreen(
         // Handle Location Permission Rationale
         if (!viewModel.hasLocationPermission()) {
             val activity = context.findActivity()
-            val showRationale = activity?.let { 
-                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.ACCESS_FINE_LOCATION) 
+            val showRationale = activity?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.ACCESS_FINE_LOCATION)
             } ?: false
-            
+
             if (showRationale) {
                 showLocationRationale = true
             } else {
@@ -299,311 +310,736 @@ fun HomeScreen(
     }
 
     Scaffold(containerColor = colors.background) { padding ->
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = 100.dp),
-            modifier = Modifier.fillMaxSize()
-        )
-        {
-            // Hero section
-            item(span = { GridItemSpan(2) }) {
-                HeroSection(
-                    searchQuery = state.searchQuery,
-                    onSearchChange = viewModel::onSearchQueryChange
-                )
-            }
-
-            // Banners
-            item(span = { GridItemSpan(2) }) {
-                BannerSlider(banners = state.banners)
-            }
-
-            // Categories
-            item(span = { GridItemSpan(2) }) {
-                CategorySection(
-                    categories = state.categories,
-                    selectedCategoryId = state.selectedCategory,
-                    onCategorySelect = viewModel::selectCategory
-                )
-            }
-
-            // Notification Permission Banner (Now below categories)
-            if (!isNotificationEnabled) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = 120.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                // 1. Compact Top App Bar
                 item(span = { GridItemSpan(2) }) {
-                    NotificationPermissionBanner(
-                        onEnable = {
-                            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    CompactHeader(
+                        onSupportClick = onSupportClick,
+                        onCartClick = onCartClick,
+                        onProfileClick = onProfileClick,
+                        cartItemCount = state.cartItems.size
+                    )
+                }
+
+                // 2. Search Bar
+                item(span = { GridItemSpan(2) }) {
+                    ModernSearchBar(
+                        searchQuery = state.searchQuery,
+                        onSearchChange = viewModel::onSearchQueryChange
+                    )
+                }
+
+                // 3. Promotional Banner Carousel
+                item(span = { GridItemSpan(2) }) {
+                    PromotionalBannerSlider(banners = state.banners)
+                }
+
+                // 4. Categories Section
+                item(span = { GridItemSpan(2) }) {
+                    CompactCategorySection(
+                        categories = state.categories,
+                        selectedCategoryId = state.selectedCategory,
+                        onCategorySelect = viewModel::selectCategory,
+                        onSeeAllClick = onMenuClick
+                    )
+                }
+
+                // Permission Banners if active
+                if (!isNotificationEnabled) {
+                    item(span = { GridItemSpan(2) }) {
+                        NotificationPermissionBanner(
+                            onEnable = {
+                                val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    }
+                                } else {
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
                                 }
-                            } else {
-                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                context.startActivity(intent)
+                            }
+                        )
+                    }
+                }
+
+                if (locationPermanentlyDenied && !isLocationEnabled) {
+                    item(span = { GridItemSpan(2) }) {
+                        LocationPermissionBanner(
+                            onEnable = {
+                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                     data = Uri.fromParts("package", context.packageName, null)
                                 }
+                                context.startActivity(intent)
                             }
-                            context.startActivity(intent)
+                        )
+                    }
+                }
+
+                // 5. Recommended for You Section
+                val itemsToShow = state.filteredItems
+                val sectionHeaderTitle = when {
+                    state.searchQuery.isNotBlank() -> "Search Results"
+                    state.selectedCategory != -1L -> {
+                        state.categories.find { it.id == state.selectedCategory }?.name ?: "Filtered Products"
+                    }
+                    state.recommendations.isNotEmpty() -> "Recommended for You"
+                    else -> "Products for You"
+                }
+
+                if (itemsToShow.isNotEmpty()) {
+                    item(span = { GridItemSpan(2) }) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp, bottom = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = sectionHeaderTitle,
+                                style = TextStyle(
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onSurface
+                                )
+                            )
+                            Row(
+                                modifier = Modifier.clickable { onMenuClick() },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "See all",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary
+                                    )
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = "See all",
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
-                    )
+                    }
+
+                    items(itemsToShow) { item ->
+                        ModernFoodCard(
+                            item = item,
+                            onAddToCart = { viewModel.updateCartItemQuantity(item) },
+                            onClick = { onItemClick(item.id) },
+                            homeViewModel = viewModel
+                        )
+                    }
+                } else {
+                    item(span = { GridItemSpan(2) }) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No products found",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 
-            // Location Permission Banner (If permanently denied)
-            if (locationPermanentlyDenied && !isLocationEnabled) {
-                item(span = { GridItemSpan(2) }) {
-                    LocationPermissionBanner(
-                        onEnable = {
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.fromParts("package", context.packageName, null)
-                            }
-                            context.startActivity(intent)
-                        }
-                    )
-                }
-            }
-
-            // Flat list of all products
-            val itemsToShow = state.recommendations.ifEmpty { state.filteredItems }
-            if (itemsToShow.isNotEmpty()) {
-                item(span = { GridItemSpan(2) }) {
+            if (state.isLoading || (locationState is UiState.Loading && state.recommendations.isEmpty())) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(colors.surface.copy(alpha = 0.3f)),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(color = colors.primary)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        if (state.recommendations.isNotEmpty()) "Recommended for You" else "Products for You",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                        "Getting your nearest outlet...",
+                        color = colors.onSurface,
+                        style = MaterialTheme.typography.labelSmall
                     )
                 }
+            }
+        }
+    }
+}
 
-                items(itemsToShow) { item ->
-                    FoodGridCard(
-                        item = item,
-                        onAddToCart = { viewModel.updateCartItemQuantity(item) },
-                        onClick = { onItemClick(item.id) },
-                        homeViewModel = viewModel,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-            } else {
-                item(span = { GridItemSpan(2) }) {
+// ─────────────────────────────────────────────────────────────
+// COMPONENT 1: COMPACT TOP APP BAR
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun CompactHeader(
+    onSupportClick: () -> Unit,
+    onCartClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    cartItemCount: Int
+) {
+    val colors = MaterialTheme.colorScheme
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Good day 👋",
+                style = TextStyle(
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.onSurfaceVariant
+                )
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "What would you like to eat?",
+                style = TextStyle(
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface
+                )
+            )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Support Icon
+            HeaderIconButton(
+                icon = Icons.Outlined.Headset,
+                contentDescription = "Support",
+                onClick = onSupportClick
+            )
+
+            // Cart Icon with badge
+            Box {
+                HeaderIconButton(
+                    icon = Icons.Outlined.ShoppingCart,
+                    contentDescription = "Cart",
+                    onClick = onCartClick
+                )
+                if (cartItemCount > 0) {
                     Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(40.dp),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 2.dp, y = (-2).dp)
+                            .size(18.dp)
+                            .background(colors.primary, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "No products found",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = colors.onSurfaceVariant
+                            text = if (cartItemCount > 99) "99+" else cartItemCount.toString(),
+                            color = colors.onPrimary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
-        }
 
-
-            if (state.isLoading || (locationState is UiState.Loading && state.recommendations.isEmpty())) {
-
-                Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(0.2f)), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-
-                    CircularProgressIndicator(color = colors.primary)
-
-                    Text("Getting your nearest outlet...", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelSmall)
-                }
-
-            }
+            // Profile Icon
+            HeaderIconButton(
+                icon = Icons.Outlined.Person,
+                contentDescription = "Profile",
+                onClick = onProfileClick
+            )
         }
     }
-}
-
-fun Context.findActivity(): Activity? {
-    var context = this
-    while (context is ContextWrapper) {
-        if (context is Activity) return context
-        context = context.baseContext
-    }
-    return null
 }
 
 @Composable
-fun LocationPermissionBanner(onEnable: () -> Unit) {
-    Card(
+fun HeaderIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = Modifier.size(40.dp),
+        shape = CircleShape,
+        color = colors.surfaceContainerHigh,
+        onClick = onClick
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = colors.onSurface,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENT 2: MODERN SEARCH BAR
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun ModernSearchBar(
+    searchQuery: String,
+    onSearchChange: (String) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    val colors = MaterialTheme.colorScheme
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        shape = RoundedCornerShape(16.dp)
+            .height(52.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = colors.surfaceContainerHigh,
+        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.LocationOn,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(22.dp)
             )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Location Access Required",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-                Text(
-                    "Please enable location in settings to see nearby outlets and get recommendations.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+            Spacer(modifier = Modifier.width(10.dp))
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = TextStyle(
+                    fontSize = 15.sp,
+                    color = colors.onSurface
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = "Search dishes, cuisines...",
+                                style = TextStyle(
+                                    fontSize = 15.sp,
+                                    color = colors.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .height(20.dp)
+                    .width(1.dp)
+                    .background(colors.outlineVariant)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.Default.Tune,
+                contentDescription = "Filter",
+                tint = colors.onSurface,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENT 3: PROMOTIONAL BANNER SLIDER
+// ─────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PromotionalBannerSlider(banners: List<Banner>) {
+    if (banners.isEmpty()) return
+
+    val colors = MaterialTheme.colorScheme
+    val pagerState = rememberPagerState { banners.size }
+    LaunchedEffect(banners) {
+        while (true) {
+            delay(3500)
+            if (banners.isNotEmpty()) {
+                val nextPage = (pagerState.currentPage + 1) % banners.size
+                pagerState.animateScrollToPage(nextPage)
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(165.dp)
+        ) { page ->
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(containerColor = colors.surface),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                AsyncImage(
+                    model = banners[page].img_url,
+                    contentDescription = "Banner",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-            TextButton(onClick = onEnable) {
-                Text("Settings")
+        }
+
+        if (banners.size > 1) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(banners.size) { index ->
+                    val isSelected = pagerState.currentPage == index
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .height(6.dp)
+                            .width(if (isSelected) 18.dp else 6.dp)
+                            .background(
+                                color = if (isSelected) colors.primary else colors.outlineVariant,
+                                shape = RoundedCornerShape(3.dp)
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENT 4: CATEGORIES SECTION
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun CompactCategorySection(
+    categories: List<Category>,
+    selectedCategoryId: Long,
+    onCategorySelect: (Long) -> Unit,
+    onSeeAllClick: () -> Unit = {}
+) {
+    val colors = MaterialTheme.colorScheme
+
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Categories",
+                style = TextStyle(
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface
+                )
+            )
+            Row(
+                modifier = Modifier.clickable { onSeeAllClick() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "See all",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.primary
+                    )
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "See all",
+                    tint = colors.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(categories) { category ->
+                val isSelected = selectedCategoryId == category.id
+                CompactCategoryCard(
+                    label = category.name,
+                    emoji = category.emoji,
+                    selected = isSelected,
+                    onClick = { onCategorySelect(category.id) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun FoodGridCard(
+fun CompactCategoryCard(
+    label: String,
+    emoji: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    val containerColor = if (selected) colors.primary else colors.surface
+    val textColor = if (selected) colors.onPrimary else colors.onSurface
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        border = if (selected) null else BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+        shadowElevation = if (selected) 2.dp else 0.dp,
+        modifier = Modifier
+            .width(78.dp)
+            .height(84.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = emoji,
+                fontSize = 24.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = textColor
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENT 5: RECOMMENDED FOR YOU / PRODUCT CARDS
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun ModernFoodCard(
     item: OutletMenuItem,
     onAddToCart: () -> Unit,
     onClick: () -> Unit,
     homeViewModel: HomeViewModel,
     modifier: Modifier = Modifier
 ) {
+    val colors = MaterialTheme.colorScheme
     val homeState = homeViewModel.uiState.collectAsStateWithLifecycle().value
-    val inCart = homeState.cartItems.any { it.menu_item_id == item.id }
+    val cartItem = homeState.cartItems.find { it.menu_item_id == item.id }
+    val inCart = cartItem != null
 
-    Card(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-
+        shape = RoundedCornerShape(18.dp),
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.4f)),
+        shadowElevation = 1.dp
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            Box {
+            // Image Container
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(125.dp)
+                    .clip(RoundedCornerShape(14.dp))
+            ) {
                 AsyncImage(
                     model = item.image.firstOrNull(),
                     contentDescription = item.product_catalog?.name,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(18.dp))
+                    modifier = Modifier.fillMaxSize()
                 )
-                RatingChip(
-                    rating = item.rating.toDouble(),
+
+                // Rating Badge (Top Right)
+                Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                )
-
-                // Outlet Mini Logo
-                val outlet = homeState.outlets.find { it.id == item.outlet_id }
-                if (outlet?.logo_url != null) {
-                    AsyncImage(
-                        model = outlet.logo_url,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .padding(1.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-
-                if (item.is_free_delivery == true) {
-                    Surface(
-                        modifier = Modifier.align(Alignment.BottomStart).padding(4.dp),
-                        color = Color(0xFF4CAF50).copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(4.dp)
+                        .padding(6.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = colors.surface.copy(alpha = 0.9f),
+                    shadowElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Rating",
+                            tint = Color(0xFFFFB800),
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(
-                            "FREE DELIVERY",
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
-                            fontWeight = FontWeight.Bold
+                            text = "%.1f".format(item.rating.toDouble()),
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurface
+                            )
                         )
                     }
                 }
+
+                // Veg / Non-Veg Indicator (Bottom Left of Image)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(6.dp)
+                        .background(colors.surface.copy(alpha = 0.9f), RoundedCornerShape(4.dp))
+                        .padding(3.dp)
+                ) {
+                    VegDot(isVeg = item.product_catalog?.is_veg ?: true)
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                VegDot(isVeg = item.product_catalog?.is_veg ?: true)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Dish Name
+            Text(
+                text = item.product_catalog?.name ?: "",
+                style = TextStyle(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Description
+            val desc = item.product_catalog?.description ?: ""
+            if (desc.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    item.product_catalog?.name ?: "",
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    text = desc,
+                    style = TextStyle(
+                        fontSize = 12.sp,
+                        color = colors.onSurfaceVariant
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Price & Add Button
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Price
                 Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "₹${item.discountedPrice.toInt()}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary
+                    Text(
+                        text = "₹${item.discountedPrice.toInt()}",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurface
                         )
-                        if (item.discount > 0) {
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = "₹${item.price.toInt()}",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    textDecoration = TextDecoration.LineThrough,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                )
-                            )
-                        }
-                    }
+                    )
                     if (item.discount > 0) {
                         Text(
-                            text = "${item.discount}% OFF",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            color = Color(0xFF43A047),
-                            fontWeight = FontWeight.Bold
+                            text = "₹${item.price.toInt()}",
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                color = colors.onSurfaceVariant.copy(alpha = 0.6f),
+                                textDecoration = TextDecoration.LineThrough
+                            )
                         )
                     }
                 }
 
+                // Add Button / Quantity Selector
                 if (!inCart) {
-                    Surface(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clickable { onAddToCart() },
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    Button(
+                        onClick = onAddToCart,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.primary,
+                            contentColor = colors.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(34.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("+", style = MaterialTheme.typography.titleLarge)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "Add",
+                                style = TextStyle(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add",
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 } else {
-                    val cartItem = homeState.cartItems.find { it.menu_item_id == item.id }
-                    QuantitySelector(
-                        quantity = cartItem?.qty?.toInt() ?: 0,
+                    CompactQuantitySelector(
+                        quantity = cartItem?.qty?.toInt() ?: 1,
                         onDecrement = {
                             homeViewModel.updateCartItemQuantity(
                                 item,
@@ -624,16 +1060,226 @@ fun FoodGridCard(
 }
 
 @Composable
-fun NotificationPermissionBanner(onEnable: () -> Unit) {
+fun CompactQuantitySelector(
+    quantity: Int,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = colors.primaryContainer,
+        border = BorderStroke(1.dp, colors.primary)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .height(32.dp)
+                .padding(horizontal = 4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { onDecrement() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("-", color = colors.onPrimaryContainer, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+            Text(
+                text = quantity.toString(),
+                style = TextStyle(
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onPrimaryContainer
+                ),
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { onIncrement() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("+", color = colors.onPrimaryContainer, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPATIBILITY & HELPER COMPOSABLES FOR OTHER SCREENS
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+fun QuantitySelector(quantity: Int, onDecrement: () -> Unit, onIncrement: () -> Unit) {
+    CompactQuantitySelector(
+        quantity = quantity,
+        onDecrement = onDecrement,
+        onIncrement = onIncrement
+    )
+}
+
+@Composable
+fun RatingChip(rating: Double, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = colors.surface.copy(alpha = 0.9f),
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Icon(
+                Icons.Default.Star,
+                contentDescription = "Rating",
+                tint = Color(0xFFFFB800),
+                modifier = Modifier.size(12.dp)
+            )
+            Text(
+                "%.1f".format(rating),
+                color = colors.onSurface,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun CategoryChip(label: String, emoji: String, selected: Boolean, onClick: () -> Unit) {
+    CompactCategoryCard(label = label, emoji = emoji, selected = selected, onClick = onClick)
+}
+
+@Composable
+fun OutletHeader(outlet: Outlet) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = outlet.logo_url,
+            contentDescription = null,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(
+                outlet.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                outlet.address ?: "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun FoodGridCard(
+    item: OutletMenuItem,
+    onAddToCart: () -> Unit,
+    onClick: () -> Unit,
+    homeViewModel: HomeViewModel,
+    modifier: Modifier = Modifier
+) {
+    ModernFoodCard(
+        item = item,
+        onAddToCart = onAddToCart,
+        onClick = onClick,
+        homeViewModel = homeViewModel,
+        modifier = modifier
+    )
+}
+
+fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
+}
+
+@Composable
+fun VegDot(isVeg: Boolean) {
+    val color = if (isVeg) Color(0xFF388E3C) else Color(0xFFD32F2F)
+    Box(
+        Modifier
+            .size(14.dp)
+            .border(1.5.dp, color, RoundedCornerShape(3.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .size(7.dp)
+                .background(color, CircleShape)
+        )
+    }
+}
+
+@Composable
+fun LocationPermissionBanner(onEnable: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.LocationOn,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Location Access Required",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    "Please enable location in settings to see nearby outlets.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            TextButton(onClick = onEnable) {
+                Text("Settings")
+            }
+        }
+    }
+}
+
+@Composable
+fun NotificationPermissionBanner(onEnable: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -658,362 +1304,5 @@ fun NotificationPermissionBanner(onEnable: () -> Unit) {
                 Text("Enable")
             }
         }
-    }
-}
-
-@Composable
-fun HeroSection(searchQuery: String, onSearchChange: (String) -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val focusManager = LocalFocusManager.current
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                colors.primaryContainer,
-                RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
-            )
-            .padding(20.dp)
-    ) {
-        Column {
-            Text(
-                "Order Delicious\nFood Today",
-                style = MaterialTheme.typography.displayMedium,
-                color = colors.onPrimaryContainer
-            )
-            Spacer(Modifier.height(20.dp))
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchChange,
-                placeholder = { Text("Search dishes, cuisines...") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = colors.surface,
-                    unfocusedContainerColor = colors.surface
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions { focusManager.clearFocus() }
-            )
-        }
-    }
-}
-
-@Composable
-fun CategorySection(
-    categories: List<com.jp.foodyvilla.data.model.Category>,
-    selectedCategoryId: Long,
-    onCategorySelect: (Long) -> Unit
-) {
-    Column(modifier = Modifier.padding(top = 24.dp)) {
-        Text(
-            "Categories",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
-        Spacer(Modifier.height(12.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(categories) { cat ->
-                CategoryChip(
-                    label = cat.name,
-                    emoji = cat.emoji,
-                    selected = selectedCategoryId == cat.id,
-                    onClick = { onCategorySelect(cat.id) })
-            }
-        }
-    }
-}
-
-@Composable
-fun OutletHeader(outlet: Outlet) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            model = outlet.logo_url,
-            contentDescription = null,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(
-                outlet.name,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                outlet.address ?: "",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun FoodCard(
-    item: OutletMenuItem,
-    onAddToCart: () -> Unit,
-    onClick: () -> Unit,
-    homeViewModel: HomeViewModel,
-    modifier: Modifier = Modifier
-) {
-    val homeState = homeViewModel.uiState.collectAsStateWithLifecycle().value
-    val inCart = homeState.cartItems.any { it.menu_item_id == item.id }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Box {
-                AsyncImage(
-                    model = item.image.firstOrNull(),
-                    contentDescription = item.product_catalog?.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                )
-                RatingChip(
-                    rating = item.rating.toDouble(),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                )
-
-                // Outlet Mini Logo
-                val outlet = homeState.outlets.find { it.id == item.outlet_id }
-                if (outlet?.logo_url != null) {
-                    AsyncImage(
-                        model = outlet.logo_url,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp)
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .padding(1.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-
-                if (item.is_free_delivery == true) {
-                    Surface(
-                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
-                        color = Color(0xFF4CAF50).copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            "FREE DELIVERY",
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                VegDot(isVeg = item.product_catalog?.is_veg ?: true)
-                Text(
-                    item.product_catalog?.name ?: "",
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Text(
-                item.product_catalog?.description ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    if (item.discount > 0) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "₹${item.price.toInt()}",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    textDecoration = TextDecoration.LineThrough,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                )
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "${item.discount}% OFF",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFE53935),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Text(
-                        "₹${item.discountedPrice.toInt()}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                if (!inCart) {
-                    Button(onClick = onAddToCart, shape = RoundedCornerShape(12.dp)) {
-                        Text("Add")
-                    }
-                } else {
-                    val cartItem = homeState.cartItems.find { it.menu_item_id == item.id }
-                    QuantitySelector(
-                        quantity = cartItem?.qty?.toInt() ?: 0,
-                        onDecrement = {
-                            homeViewModel.updateCartItemQuantity(
-                                item,
-                                (cartItem?.qty ?: 0).toInt() - 1
-                            )
-                        },
-                        onIncrement = {
-                            homeViewModel.updateCartItemQuantity(
-                                item,
-                                (cartItem?.qty ?: 0).toInt() + 1
-                            )
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CategoryChip(label: String, emoji: String, selected: Boolean, onClick: () -> Unit) {
-    val bgColor =
-        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val textColor =
-        if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-    Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        modifier = Modifier
-            .width(72.dp)
-            .height(88.dp)
-            .border(1.dp,if (selected) Color.Transparent else MaterialTheme.colorScheme.onSurface,RoundedCornerShape(16.dp))
-    ) {
-        Column(
-            Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(emoji, fontSize = 24.sp)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = textColor,
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun BannerSlider(banners: List<Banner>) {
-    val pagerState = rememberPagerState { banners.size }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(3000)
-            if (banners.isNotEmpty()) pagerState.animateScrollToPage((pagerState.currentPage + 1) % banners.size)
-        }
-    }
-    HorizontalPager(
-        state = pagerState,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .padding(8.dp)
-    ) { page ->
-        AsyncImage(
-            model = banners[page].img_url,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(16.dp))
-        )
-    }
-}
-
-@Composable
-fun RatingChip(rating: Double, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-    ) {
-        Row(
-            Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Star,
-                null,
-                tint = Color(0xFFFFA000),
-                modifier = Modifier.size(12.dp)
-            )
-            Text(
-                "%.1f".format(rating),
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-fun VegDot(isVeg: Boolean) {
-    val color = if (isVeg) Color(0xFF43A047) else Color.Red
-    Box(
-        Modifier
-            .size(14.dp)
-            .border(1.5.dp, color, RoundedCornerShape(2.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(Modifier
-            .size(7.dp)
-            .background(color, CircleShape))
-    }
-}
-
-@Composable
-fun QuantitySelector(quantity: Int, onDecrement: () -> Unit, onIncrement: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onDecrement) { Icon(Icons.Default.Remove, null) }
-        Text(quantity.toString(), style = MaterialTheme.typography.titleMedium)
-        IconButton(onClick = onIncrement) { Icon(Icons.Default.Add, null) }
     }
 }

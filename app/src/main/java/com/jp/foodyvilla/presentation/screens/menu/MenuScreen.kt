@@ -295,7 +295,7 @@ fun FoodListItem(
                                 Text(
                                     text = "${item.discount}% OFF",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFE53935),
+                                    color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -310,7 +310,7 @@ fun FoodListItem(
                             Text(
                                 text = "Free Delivery",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF43A047),
+                                color = MaterialTheme.colorScheme.tertiary,
                                 fontWeight = FontWeight.Bold
                             )
                         }

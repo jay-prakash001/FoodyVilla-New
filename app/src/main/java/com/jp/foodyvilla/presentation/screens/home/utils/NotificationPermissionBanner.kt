@@ -287,7 +287,7 @@ fun FoodCard(
                             Text(
                                 "${item.discount}% OFF",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFE53935),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold
                             )
                         }

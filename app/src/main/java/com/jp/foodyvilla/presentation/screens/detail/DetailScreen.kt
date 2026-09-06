@@ -104,7 +104,7 @@ fun DetailScreen(
                             },
                             modifier = Modifier.weight(1f).height(52.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (inCart) Color(0xFF4CAF50) else if (isOpen) primaryRed else Color.Gray
+                                containerColor = if (inCart) MaterialTheme.colorScheme.tertiary else if (isOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                             ),
                             enabled = isOpen || inCart
                         ) {
@@ -180,10 +180,10 @@ fun DetailScreen(
                                 )
                             )
                             Spacer(Modifier.width(12.dp))
-                            Surface(color = Color(0xFFE53935).copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), shape = RoundedCornerShape(8.dp)) {
                                 Text(
                                     "${item.discount}% OFF",
-                                    color = Color(0xFFE53935),
+                                    color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold
@@ -193,11 +193,11 @@ fun DetailScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("₹${item.discountedPrice.toInt()}", style = MaterialTheme.typography.headlineSmall.copy(color = primaryRed))
+                        Text("₹${item.discountedPrice.toInt()}", style = MaterialTheme.typography.headlineSmall.copy(color = MaterialTheme.colorScheme.primary))
                         if (item.is_free_delivery == true) {
                             Spacer(Modifier.width(12.dp))
-                            Surface(color = Color(0xFF4CAF50).copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
-                                Text("FREE DELIVERY", color = Color(0xFF4CAF50), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            Surface(color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f), shape = RoundedCornerShape(8.dp)) {
+                                Text("FREE DELIVERY", color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

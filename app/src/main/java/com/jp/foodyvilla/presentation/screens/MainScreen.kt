@@ -1,24 +1,12 @@
 package com.jp.foodyvilla.presentation.screens
 
-
-// Compose UI
-
-
-import android.Manifest
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -34,7 +22,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -45,8 +32,6 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.airbnb.lottie.compose.*
-import com.jp.foodyvilla.R
 import com.jp.foodyvilla.presentation.components.FoodyVillaNavBar
 import com.jp.foodyvilla.presentation.navigation.Screen
 import com.jp.foodyvilla.presentation.screens.home.HomeScreen
@@ -55,7 +40,6 @@ import com.jp.foodyvilla.presentation.screens.menu.MenuScreen
 import com.jp.foodyvilla.presentation.screens.offers.OffersScreen
 import com.jp.foodyvilla.presentation.screens.orders.OrderHistoryScreen
 import com.jp.foodyvilla.presentation.screens.reviews.ReviewsScreen
-import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,14 +49,13 @@ fun MainScreen(
     viewModel: HomeViewModel
 ) {
     val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
 
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { isGranted ->
         // Handle result if needed
     }
-
-
 
     LaunchedEffect(Unit) {
         viewModel.getCartItems()
@@ -87,80 +70,63 @@ fun MainScreen(
         "Reviews",
         "Contact Us"
     )
-    val title = titles[selectedPage]
-
+    val title = titles.getOrElse(selectedPage) { "Foody Villa" }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background, // Change from Transparent
+        containerColor = colors.background,
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        title ?: "Foody Villa",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(MaterialTheme.colorScheme.primaryContainer),
-                actions = {
-                    IconButton(onClick = {
-
-                        navController.navigate(Screen.CustomerSupport)
-
-                    }) {
-                        Icon(
-                            Icons.Default.SupportAgent,
-                            contentDescription = "customer support",
-                            tint = MaterialTheme.colorScheme.onPrimary
+            if (selectedPage != 0) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurface
                         )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface),
+                    actions = {
+                        IconButton(onClick = { navController.navigate(Screen.CustomerSupport) }) {
+                            Icon(
+                                Icons.Default.SupportAgent,
+                                contentDescription = "Customer Support",
+                                tint = colors.onSurface
+                            )
+                        }
+                        IconButton(onClick = { navController.navigate(Screen.Cart) }) {
+                            Icon(
+                                Icons.Default.ShoppingCart,
+                                contentDescription = "Cart",
+                                tint = colors.onSurface
+                            )
+                        }
+                        IconButton(onClick = { navController.navigate(Screen.Profile) }) {
+                            Icon(
+                                Icons.Default.Person3,
+                                contentDescription = "Profile",
+                                tint = colors.onSurface
+                            )
+                        }
                     }
-                    IconButton(onClick = {
-
-                        navController.navigate(Screen.Cart)
-
-                    }) {
-                        Icon(
-                            Icons.Default.ShoppingCart,
-                            contentDescription = "Cart",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-
-
-                    IconButton(onClick = {
-
-                        navController.navigate(Screen.Profile)
-
-                    }) {
-                        Icon(
-                            Icons.Default.Person3,
-                            contentDescription = "Cart",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
-            )
+                )
+            }
         },
-//        floatingActionButton = {
-//            CartFab(
-//                cartItemCount = homeState.cartItems.size,
-//                onClick = { navController.navigate(Screen.Cart) }
-//            )
-//        },
         bottomBar = {
-
-
-            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp) ){
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 ZomatoCartBar(
                     cartItemCount = homeState.cartItems.size,
                     totalPrice = homeState.cartItems.sumOf { it.totalPrice ?: 0.0 },
-                    homeState.cartItems.mapNotNull {
+                    items = homeState.cartItems.mapNotNull {
                         it.outlet_menu_items?.image?.firstOrNull()
-                    }
-                ) {
-                    navController.navigate(Screen.Cart)
-                }
+                    },
+                    onClick = { navController.navigate(Screen.Cart) }
+                )
                 FoodyVillaNavBar(
                     selectedPage = selectedPage,
                     onPageChange = { viewModel.updateSelectedPage(it) },
@@ -169,57 +135,58 @@ fun MainScreen(
                         .height(84.dp)
                 )
             }
-
-
         }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Transparent)
-                .padding(top = innerPadding.calculateTopPadding()) ,
-      contentAlignment = Alignment.Center
+                .padding(top = if (selectedPage != 0) innerPadding.calculateTopPadding() else 0.dp),
+            contentAlignment = Alignment.TopCenter
         ) {
-
-            // MenuWebViewScreen stays alive in the background — never recomposed away
-
-
-            // Overlay the other pages on top, just hide them when not needed
             when (selectedPage) {
-                0 -> HomeScreen({ itemId ->
-                    navController.navigate(Screen.Detail(itemId))
-                }, viewModel = viewModel, onMenuClick = {
-                    viewModel.updateSelectedPage(1)
-                })
+                0 -> HomeScreen(
+                    onItemClick = { itemId ->
+                        navController.navigate(Screen.Detail(itemId))
+                    },
+                    viewModel = viewModel,
+                    onMenuClick = {
+                        viewModel.updateSelectedPage(1)
+                    },
+                    onSupportClick = { navController.navigate(Screen.CustomerSupport) },
+                    onCartClick = { navController.navigate(Screen.Cart) },
+                    onProfileClick = { navController.navigate(Screen.Profile) }
+                )
 
                 1 -> MenuScreen(
                     viewModel = viewModel,
-                    onItemClick = { navController.navigate(Screen.Detail(it)) })
+                    onItemClick = { navController.navigate(Screen.Detail(it)) }
+                )
 
                 2 -> OffersScreen()
-                3 -> ReviewsScreen() {
+                3 -> ReviewsScreen {
                     navController.navigate(Screen.AddReviews())
                 }
 
                 4 -> OrderHistoryScreen(viewModel = viewModel) { productId ->
-                     navController.navigate(Screen.AddReviews(productId = productId))
+                    navController.navigate(Screen.AddReviews(productId = productId))
                 }
-                else -> HomeScreen({ itemId ->
-                    navController.navigate(Screen.Detail(itemId))
-                }, viewModel = viewModel, onMenuClick = {
-                    viewModel.updateSelectedPage(1)
-                })
 
+                else -> HomeScreen(
+                    onItemClick = { itemId ->
+                        navController.navigate(Screen.Detail(itemId))
+                    },
+                    viewModel = viewModel,
+                    onMenuClick = {
+                        viewModel.updateSelectedPage(1)
+                    },
+                    onSupportClick = { navController.navigate(Screen.CustomerSupport) },
+                    onCartClick = { navController.navigate(Screen.Cart) },
+                    onProfileClick = { navController.navigate(Screen.Profile) }
+                )
             }
-
-
         }
     }
 }
-
-
-
-
 
 @Composable
 fun ZomatoCartBar(
@@ -228,27 +195,9 @@ fun ZomatoCartBar(
     items: List<String> = emptyList(),
     onClick: () -> Unit
 ) {
-    val composition by rememberLottieComposition(
-        LottieCompositionSpec.RawRes(R.raw.cart_red)
-    )
-
-    var isAnimating by remember { mutableStateOf(false) }
-    val progress by animateLottieCompositionAsState(
-        composition = composition,
-        isPlaying = isAnimating,
-        iterations = 1,
-        speed = 1.5f
-    )
-
-    LaunchedEffect(cartItemCount) {
-        if (cartItemCount > 0) {
-            isAnimating = false
-            isAnimating = true
-        }
-    }
-    LaunchedEffect(progress) {
-        if (progress == 1f) isAnimating = false
-    }
+    val colors = MaterialTheme.colorScheme
+    val barColor = colors.primary
+    val contentColor = colors.onPrimary
 
     AnimatedVisibility(
         visible = cartItemCount > 0,
@@ -258,8 +207,8 @@ fun ZomatoCartBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth(.9f)
-//                .background(Color.Transparent)
-                .padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
@@ -267,7 +216,7 @@ fun ZomatoCartBar(
                     .height(80.dp)
                     .clickable { onClick() },
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFFE23744) // Zomato red
+                color = barColor
             ) {
                 Row(
                     modifier = Modifier
@@ -276,42 +225,33 @@ fun ZomatoCartBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-// Option A: Simple Row with negative padding for overlap
                     Row(
-                        modifier = Modifier
-                            .height(60.dp)
-
+                        modifier = Modifier.height(60.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         items.take(3).forEachIndexed { index, imageUrl ->
                             AsyncImage(
                                 model = imageUrl,
-                                contentDescription = null, contentScale = ContentScale.Crop,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(60.dp)
-                                    .offset(x = (-30 * index).dp)  // 👈 negative = overlap left
-                                    .zIndex((5 - index).toFloat())  // 👈 first image on top
-                                    .border(2.dp, Color(0xFFE23744), CircleShape)
+                                    .offset(x = (-30 * index).dp)
+                                    .zIndex((5 - index).toFloat())
+                                    .border(2.dp, barColor, CircleShape)
                                     .clip(CircleShape)
                             )
                         }
-
                     }
-                    // Left — item count badge
 
-
-                    // Center — Lottie + "View Cart"
+                    // Center — "View Cart"
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-//                        LottieAnimation(
-//                            composition = composition,
-//                            progress = { progress },
-//                            modifier = Modifier.size(28.dp)
-//                        )
                         Text(
                             text = "View Cart",
-                            color = Color.White,
+                            color = contentColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             letterSpacing = 0.3.sp
@@ -325,95 +265,17 @@ fun ZomatoCartBar(
                     ) {
                         Text(
                             text = "₹%.0f".format(totalPrice),
-                            color = Color.White,
+                            color = contentColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
                         Icon(
                             imageVector = Icons.Default.ArrowForwardIos,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = contentColor,
                             modifier = Modifier.size(12.dp)
                         )
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CartFab(
-    cartItemCount: Int,
-    onClick: () -> Unit
-) {
-    val composition by rememberLottieComposition(
-        LottieCompositionSpec.RawRes(R.raw.cart_red)
-    )
-
-    // Trigger animation when cart count changes
-    var isAnimating by remember { mutableStateOf(false) }
-    val progress by animateLottieCompositionAsState(
-        composition = composition,
-        isPlaying = isAnimating,
-        iterations = 1,
-        speed = 1.5f
-    )
-
-    // Re-trigger on item count change
-    LaunchedEffect(cartItemCount) {
-        if (cartItemCount > 0) {
-            isAnimating = false
-            isAnimating = true
-        }
-    }
-
-    // Reset isAnimating when animation completes
-    LaunchedEffect(progress) {
-        if (progress == 1f) isAnimating = false
-    }
-
-    // Scale bounce on item add
-    val scale by animateFloatAsState(
-        targetValue = if (isAnimating) 1.15f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "fab_scale"
-    )
-
-    if (cartItemCount > 0) {
-        Box(contentAlignment = Alignment.TopEnd) {
-            FloatingActionButton(
-                onClick = onClick,
-                modifier = Modifier
-                    .scale(scale)
-                    .size(64.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                LottieAnimation(
-                    composition = composition,
-                    progress = { progress },
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-
-            // Badge
-            AnimatedVisibility(
-                visible = cartItemCount > 0,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut()
-            ) {
-                Badge(
-                    modifier = Modifier.offset(x = 4.dp, y = (-4).dp),
-                    containerColor = MaterialTheme.colorScheme.error
-                ) {
-                    Text(
-                        text = if (cartItemCount > 99) "99+" else cartItemCount.toString(),
-                        style = MaterialTheme.typography.labelSmall
-                    )
                 }
             }
         }

@@ -46,26 +46,49 @@ data class HomeUiState(
     val filteredItems: List<OutletMenuItem>
         get() {
             val query = searchQuery.trim()
-            val activeCategoryIds = categories.map { it.id }.toSet()
+            val baseList = if (recommendations.isNotEmpty()) recommendations else allItems
+            val selectedCatName = categories.find { it.id == selectedCategory }?.name
 
-            return allItems.filter { item ->
+            val filtered = baseList.filter { item ->
                 val categoryId = item.product_catalog?.category_id ?: -1L
-                val isInCategoryActive = activeCategoryIds.contains(categoryId)
-                
-                if (!isInCategoryActive && categoryId != -1L) return@filter false
 
                 val matchesSearch = query.isBlank() ||
                         item.product_catalog?.name?.contains(query, true) == true ||
                         item.product_catalog?.description?.contains(query, true) == true
 
                 val matchesCategory = selectedCategory == -1L ||
-                        categoryId == selectedCategory
+                        categoryId == selectedCategory ||
+                        item.product_catalog?.categories?.id == selectedCategory ||
+                        (selectedCatName != null && !selectedCatName.equals("All", true) && item.product_catalog?.categories?.name?.equals(selectedCatName, true) == true)
 
-                val matchesOutlet = selectedOutletId == -1L ||
+                val matchesOutlet = selectedOutletId <= 0L ||
                         item.outlet_id == selectedOutletId
 
                 matchesSearch && matchesCategory && matchesOutlet
             }
+
+            if (filtered.isEmpty()) {
+                if (query.isNotBlank() || selectedCategory != -1L) {
+                    return allItems.filter { item ->
+                        val categoryId = item.product_catalog?.category_id ?: -1L
+
+                        val matchesSearch = query.isBlank() ||
+                                item.product_catalog?.name?.contains(query, true) == true ||
+                                item.product_catalog?.description?.contains(query, true) == true
+
+                        val matchesCategory = selectedCategory == -1L ||
+                                categoryId == selectedCategory ||
+                                item.product_catalog?.categories?.id == selectedCategory ||
+                                (selectedCatName != null && !selectedCatName.equals("All", true) && item.product_catalog?.categories?.name?.equals(selectedCatName, true) == true)
+
+                        matchesSearch && matchesCategory
+                    }
+                } else {
+                    return allItems
+                }
+            }
+
+            return filtered
         }
 }
 
